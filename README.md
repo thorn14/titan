@@ -1,5 +1,7 @@
 # Titan
 
+![Titan](/titan/titan.png)
+
 A file-tree-based terminal manager for parallel agent work.
 
 Organize terminal sessions into folder-based channels and threaded conversations.
