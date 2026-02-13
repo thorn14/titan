@@ -1,6 +1,6 @@
 # Titan
 
-![Titan](/titan/titan.png)
+![Titan](/titan.png)
 
 A file-tree-based terminal manager for parallel agent work.
 
