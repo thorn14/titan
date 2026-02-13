@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter desktop dev",
+    "build": "pnpm --filter desktop build",
+    "lint": "biome check .",
+    "format": "biome format --write ."
+  }
+}
