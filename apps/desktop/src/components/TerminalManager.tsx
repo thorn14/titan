@@ -236,6 +236,9 @@ export default function TerminalManager() {
   selectedIdRef.current = state.selectedThreadId;
   threadsRef.current = state.threads;
 
+  const autoRunCommandRef = useRef(state.autoRunCommand);
+  autoRunCommandRef.current = state.autoRunCommand;
+
   const spawnPty = useCallback(
     (
       instance: TerminalInstance,
@@ -251,23 +254,26 @@ export default function TerminalManager() {
 
       instance.pty = pty;
 
-      // Auto-run claude after shell initializes
-      setTimeout(() => {
-        if (instance.pty && !instance.claudeStarted) {
-          instance.claudeStarted = true;
-          instance.pty.write("claude\n");
+      // Auto-run configured command after shell initializes
+      const cmd = autoRunCommandRef.current;
+      if (cmd) {
+        setTimeout(() => {
+          if (instance.pty && !instance.claudeStarted) {
+            instance.claudeStarted = true;
+            instance.pty.write(`${cmd}\n`);
 
-          // If there's a pending prompt, send it after Claude starts
-          if (pendingPrompt) {
-            setTimeout(() => {
-              if (instance.pty && !instance.promptSent) {
-                instance.promptSent = true;
-                instance.pty.write(`${pendingPrompt}\n`);
-              }
-            }, 2500);
+            // If there's a pending prompt, send it after the CLI starts
+            if (pendingPrompt) {
+              setTimeout(() => {
+                if (instance.pty && !instance.promptSent) {
+                  instance.promptSent = true;
+                  instance.pty.write(`${pendingPrompt}\n`);
+                }
+              }, 2500);
+            }
           }
-        }
-      }, 500);
+        }, 500);
+      }
 
       instance.disposables.push(
         pty.onData((rawData) => {
@@ -296,20 +302,21 @@ export default function TerminalManager() {
             }
           }
 
-          // Auto-title: generate title from first meaningful Claude output
+          // Auto-title: generate title from first meaningful output
           if (!instance.autoTitleDone && instance.claudeStarted) {
             const thread = threadsRef.current.find(
               (t) => t.id === threadId,
             );
             if (thread?.autoTitled) {
+              const currentCmd = autoRunCommandRef.current ?? "";
               for (const line of lines) {
                 const trimmed = line.trim();
-                // Skip empty, shell prompts, and the "claude" command itself
+                // Skip empty, shell prompts, and the auto-run command itself
                 if (
                   trimmed.length > 3 &&
                   !trimmed.startsWith("$") &&
                   !trimmed.startsWith("%") &&
-                  trimmed !== "claude" &&
+                  trimmed !== currentCmd &&
                   !trimmed.startsWith("╭") &&
                   !trimmed.startsWith("╰") &&
                   !trimmed.startsWith(">")

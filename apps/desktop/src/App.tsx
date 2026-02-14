@@ -4,6 +4,7 @@ import Layout from "./components/Layout";
 import Sidebar from "./components/Sidebar";
 import ThreadList from "./components/ThreadList";
 import RepliesView from "./components/RepliesView";
+import SettingsView from "./components/SettingsView";
 import TerminalManager from "./components/TerminalManager";
 
 const SESSION_CHANNEL_KEY = "titan:selectedChannelId";
@@ -141,8 +142,14 @@ function AppInner() {
     }, 1000);
   }, [state.threads, state.rootPath, state.scheduledMessages]);
 
-  const centerContent =
-    state.currentView === "replies" ? <RepliesView /> : <ThreadList />;
+  let centerContent: React.ReactNode;
+  if (state.currentView === "replies") {
+    centerContent = <RepliesView />;
+  } else if (state.currentView === "settings") {
+    centerContent = <SettingsView />;
+  } else {
+    centerContent = <ThreadList />;
+  }
 
   return (
     <Layout

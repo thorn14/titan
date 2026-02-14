@@ -190,6 +190,15 @@ export default function Sidebar() {
 
         <button
           type="button"
+          className={`theme-toggle-btn ${state.currentView === "settings" ? "active" : ""}`}
+          onClick={() => dispatch({ type: "SET_VIEW", view: "settings" })}
+          title="Settings"
+        >
+          {"\u2699"}
+        </button>
+
+        <button
+          type="button"
           className="theme-toggle-btn"
           onClick={handleToggleTheme}
           title={`Switch to ${state.theme === "dark" ? "light" : "dark"} mode`}

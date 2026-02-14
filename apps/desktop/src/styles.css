@@ -1006,6 +1006,100 @@ button {
   color: var(--text);
 }
 
+/* ── Settings view ───────────────────────────────── */
+.settings-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 16px;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 400px;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-bright);
+}
+
+.settings-field-description {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.settings-input {
+  padding: 7px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border-hover);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-size: 12px;
+  font-family: "SF Mono", Menlo, monospace;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.settings-input:focus {
+  border-color: var(--accent);
+}
+
+.settings-input::placeholder {
+  color: var(--text-faint);
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-save-btn {
+  padding: 6px 16px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.settings-save-btn:hover {
+  background: var(--accent-hover);
+}
+
+/* Active state for gear icon */
+.theme-toggle-btn.active {
+  color: var(--accent);
+}
+
 /* ── Inline rename ───────────────────────────────── */
 .thread-title-edit {
   background: var(--bg);

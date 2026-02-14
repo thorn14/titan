@@ -45,6 +45,7 @@ export type Action =
   | { type: "SCHEDULE_MESSAGE"; message: ScheduledMessage }
   | { type: "CANCEL_SCHEDULED"; messageId: string }
   | { type: "FIRE_SCHEDULED"; messageId: string }
+  | { type: "SET_AUTO_RUN_COMMAND"; command: string | null }
   | { type: "HYDRATE"; state: Partial<AppState> };
 
 function loadTheme(): Theme {
@@ -53,6 +54,14 @@ function loadTheme(): Theme {
     if (saved === "light" || saved === "dark") return saved;
   } catch {}
   return "dark";
+}
+
+function loadAutoRunCommand(): string | null {
+  try {
+    const saved = localStorage.getItem("titan:autoRunCommand");
+    if (saved !== null) return saved || null;
+  } catch {}
+  return "claude";
 }
 
 const initialState: AppState = {
@@ -64,6 +73,7 @@ const initialState: AppState = {
   theme: loadTheme(),
   currentView: "threads",
   scheduledMessages: [],
+  autoRunCommand: loadAutoRunCommand(),
 };
 
 function deriveUnread(
@@ -236,6 +246,18 @@ function reducer(state: AppState, action: Action): AppState {
         localStorage.setItem("titan:theme", newTheme);
       } catch {}
       return { ...state, theme: newTheme };
+    }
+
+    case "SET_AUTO_RUN_COMMAND": {
+      const cmd = action.command;
+      try {
+        if (cmd) {
+          localStorage.setItem("titan:autoRunCommand", cmd);
+        } else {
+          localStorage.removeItem("titan:autoRunCommand");
+        }
+      } catch {}
+      return { ...state, autoRunCommand: cmd };
     }
 
     case "SET_VIEW":
