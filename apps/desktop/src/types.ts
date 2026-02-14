@@ -6,6 +6,8 @@ export interface Channel {
 }
 
 export type ThreadStatus = "active" | "snoozed" | "done";
+export type Theme = "light" | "dark";
+export type AppView = "threads" | "replies";
 
 export interface Thread {
   id: string;
@@ -22,6 +24,14 @@ export interface Thread {
   lastOutputPreview: string | null;
   ptyRunning: boolean;
   ptyExitCode: number | null;
+  autoTitled: boolean;
+}
+
+export interface ScheduledMessage {
+  id: string;
+  channelId: string;
+  prompt: string;
+  scheduledAt: number;
 }
 
 export interface AppState {
@@ -30,4 +40,7 @@ export interface AppState {
   selectedChannelId: string | null;
   selectedThreadId: string | null;
   rootPath: string | null;
+  theme: Theme;
+  currentView: AppView;
+  scheduledMessages: ScheduledMessage[];
 }

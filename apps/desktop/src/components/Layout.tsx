@@ -2,7 +2,7 @@ import { type ReactNode, useState, useRef, useCallback, useEffect } from "react"
 
 interface LayoutProps {
   sidebar: ReactNode;
-  threadList: ReactNode;
+  centerContent: ReactNode;
   terminal: ReactNode;
   showTerminal: boolean;
 }
@@ -13,7 +13,7 @@ const MIN_RIGHT = 300;
 
 export default function Layout({
   sidebar,
-  threadList,
+  centerContent,
   terminal,
   showTerminal,
 }: LayoutProps) {
@@ -83,23 +83,24 @@ export default function Layout({
           flex: showTerminal ? undefined : 1,
         }}
       >
-        {threadList}
+        {centerContent}
       </div>
-      {showTerminal && (
-        <>
-          <div
-            className="resize-handle"
-            onMouseDown={onMouseDown("right")}
-            role="separator"
-          />
-          <div
-            className="panel panel-right"
-            style={{ minWidth: MIN_RIGHT }}
-          >
-            {terminal}
-          </div>
-        </>
-      )}
+      {/* Always render terminal + resize handle to preserve PTY state */}
+      <div
+        className="resize-handle"
+        onMouseDown={onMouseDown("right")}
+        role="separator"
+        style={{ display: showTerminal ? undefined : "none" }}
+      />
+      <div
+        className="panel panel-right"
+        style={{
+          minWidth: showTerminal ? MIN_RIGHT : 0,
+          display: showTerminal ? undefined : "none",
+        }}
+      >
+        {terminal}
+      </div>
     </div>
   );
 }

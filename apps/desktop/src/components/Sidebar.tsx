@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useAppState, useAppDispatch } from "../store";
-import type { Channel, Thread } from "../types";
+import type { Channel } from "../types";
 
 interface DirEntry {
   name: string;
@@ -17,30 +17,6 @@ function buildChannelTree(entry: DirEntry): Channel {
     path: entry.path,
     children: entry.children.map(buildChannelTree),
   };
-}
-
-function formatRelativeTime(ts: number): string {
-  const diff = Date.now() - ts;
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return "just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function getReplyReason(
-  thread: Thread,
-): { text: string; className: string } | null {
-  if (thread.snoozeDue) {
-    return { text: "Snooze expired", className: "reply-reason-snooze" };
-  }
-  if (thread.hasUnread) {
-    return { text: "New activity", className: "reply-reason-unread" };
-  }
-  return null;
 }
 
 function ChannelNode({
@@ -119,25 +95,9 @@ export default function Sidebar() {
     );
   }
 
-  // Replies: unread + snooze-due, sorted most recently active first
-  const replyThreads = useMemo(() => {
-    return state.threads
-      .filter((t) => t.hasUnread || t.snoozeDue)
-      .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+  const replyCount = useMemo(() => {
+    return state.threads.filter((t) => t.hasUnread || t.snoozeDue).length;
   }, [state.threads]);
-
-  // Build channel name lookup
-  const channelNameMap = useMemo(() => {
-    const map = new Map<string, string>();
-    function walk(channels: Channel[]) {
-      for (const ch of channels) {
-        map.set(ch.id, ch.name);
-        walk(ch.children);
-      }
-    }
-    walk(state.channels);
-    return map;
-  }, [state.channels]);
 
   const handlePickFolder = useCallback(async () => {
     const selected = await open({
@@ -164,16 +124,12 @@ export default function Sidebar() {
     [dispatch],
   );
 
-  const handleSelectReply = useCallback(
-    (threadId: string, channelId: string) => {
-      dispatch({ type: "SELECT_CHANNEL", channelId });
-      dispatch({ type: "SELECT_THREAD", threadId });
-    },
-    [dispatch],
-  );
+  const handleOpenReplies = useCallback(() => {
+    dispatch({ type: "SET_VIEW", view: "replies" });
+  }, [dispatch]);
 
-  const handleMarkAllRead = useCallback(() => {
-    dispatch({ type: "MARK_ALL_READ" });
+  const handleToggleTheme = useCallback(() => {
+    dispatch({ type: "TOGGLE_THEME" });
   }, [dispatch]);
 
   return (
@@ -218,66 +174,28 @@ export default function Sidebar() {
         ))}
       </div>
 
-      {/* Replies section */}
-      <div className="sidebar-replies">
-        <div className="sidebar-replies-header">
+      {/* Replies button */}
+      <div className="sidebar-bottom">
+        <button
+          type="button"
+          className={`replies-btn ${state.currentView === "replies" ? "active" : ""}`}
+          onClick={handleOpenReplies}
+        >
+          <span className="replies-btn-icon">{"\u21A9"}</span>
           <span>Replies</span>
-          {replyThreads.length > 0 && (
-            <span className="replies-badge">{replyThreads.length}</span>
+          {replyCount > 0 && (
+            <span className="replies-badge">{replyCount}</span>
           )}
-          <span className="replies-header-spacer" />
-          {replyThreads.length > 0 && (
-            <button
-              type="button"
-              className="replies-mark-all-btn"
-              onClick={handleMarkAllRead}
-            >
-              Mark all read
-            </button>
-          )}
-        </div>
-        <div className="sidebar-replies-list">
-          {replyThreads.length === 0 ? (
-            <div className="replies-empty">
-              <span className="replies-empty-icon">{"\u2713"}</span>
-              <span>All caught up</span>
-            </div>
-          ) : (
-            replyThreads.map((thread) => {
-              const reason = getReplyReason(thread);
-              return (
-                <button
-                  key={thread.id}
-                  type="button"
-                  className="reply-row"
-                  onClick={() =>
-                    handleSelectReply(thread.id, thread.channelId)
-                  }
-                >
-                  <div className="reply-row-top">
-                    <span className="reply-channel">
-                      {channelNameMap.get(thread.channelId) ?? "unknown"}
-                    </span>
-                    {reason && (
-                      <span className={`reply-reason ${reason.className}`}>
-                        {reason.text}
-                      </span>
-                    )}
-                  </div>
-                  <span className="reply-title">{thread.title}</span>
-                  {thread.lastOutputPreview && (
-                    <span className="reply-preview">
-                      {thread.lastOutputPreview}
-                    </span>
-                  )}
-                  <span className="reply-time">
-                    {formatRelativeTime(thread.lastActivityAt)}
-                  </span>
-                </button>
-              );
-            })
-          )}
-        </div>
+        </button>
+
+        <button
+          type="button"
+          className="theme-toggle-btn"
+          onClick={handleToggleTheme}
+          title={`Switch to ${state.theme === "dark" ? "light" : "dark"} mode`}
+        >
+          {state.theme === "dark" ? "\u2600" : "\u263D"}
+        </button>
       </div>
     </div>
   );

@@ -24,11 +24,76 @@ const STATUS_ICONS: Record<ThreadStatus, string> = {
   done: "\u2713",
 };
 
+function InlineRenameTitle({
+  thread,
+  onRename,
+}: {
+  thread: Thread;
+  onRename: (threadId: string, title: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(thread.title);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }
+  }, [editing]);
+
+  if (!editing) {
+    return (
+      <span
+        className="thread-title"
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          setValue(thread.title);
+          setEditing(true);
+        }}
+      >
+        {thread.title}
+      </span>
+    );
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      className="thread-title-edit"
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") {
+          const trimmed = value.trim();
+          if (trimmed && trimmed !== thread.title) {
+            onRename(thread.id, trimmed);
+          }
+          setEditing(false);
+        }
+        if (e.key === "Escape") {
+          setEditing(false);
+        }
+      }}
+      onBlur={() => {
+        const trimmed = value.trim();
+        if (trimmed && trimmed !== thread.title) {
+          onRename(thread.id, trimmed);
+        }
+        setEditing(false);
+      }}
+    />
+  );
+}
+
 function ThreadRow({
   thread,
   isSelected,
   onSelect,
   onContextAction,
+  onRename,
 }: {
   thread: Thread;
   isSelected: boolean;
@@ -38,6 +103,7 @@ function ThreadRow({
     action: string,
     snoozeUntil?: number,
   ) => void;
+  onRename: (threadId: string, title: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -55,7 +121,7 @@ function ThreadRow({
         <div className="thread-row-left">
           {thread.hasUnread && <span className="unread-dot" />}
           <div className="thread-row-text">
-            <span className="thread-title">{thread.title}</span>
+            <InlineRenameTitle thread={thread} onRename={onRename} />
             {thread.lastOutputPreview && (
               <span className="thread-preview">
                 {thread.lastOutputPreview}
@@ -79,6 +145,13 @@ function ThreadRow({
         <DropdownMenu.Trigger className="thread-row-menu-anchor" />
         <DropdownMenu.Portal>
         <DropdownMenu.Content className="dropdown-content" sideOffset={4}>
+          <DropdownMenu.Item
+            className="dropdown-item"
+            onSelect={() => onContextAction(thread.id, "rename")}
+          >
+            Rename...
+          </DropdownMenu.Item>
+          <DropdownMenu.Separator className="dropdown-separator" />
           <DropdownMenu.Item
             className="dropdown-item"
             onSelect={() => onContextAction(thread.id, "active")}
@@ -139,6 +212,7 @@ function ThreadGroup({
   selectedThreadId,
   onSelectThread,
   onContextAction,
+  onRename,
   defaultCollapsed,
 }: {
   title: string;
@@ -150,6 +224,7 @@ function ThreadGroup({
     action: string,
     snoozeUntil?: number,
   ) => void;
+  onRename: (threadId: string, title: string) => void;
   defaultCollapsed?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed ?? false);
@@ -178,11 +253,68 @@ function ThreadGroup({
               isSelected={thread.id === selectedThreadId}
               onSelect={() => onSelectThread(thread.id)}
               onContextAction={onContextAction}
+              onRename={onRename}
             />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+function ScheduleDropdown({
+  onSchedule,
+}: {
+  onSchedule: (timestamp: number) => void;
+}) {
+  const [showCustom, setShowCustom] = useState(false);
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button type="button" className="compose-schedule" title="Schedule send">
+          {"\u23F0"}
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content className="dropdown-content" sideOffset={4} align="end">
+          {SNOOZE_OPTIONS.map((opt) => (
+            <DropdownMenu.Item
+              key={opt.label}
+              className="dropdown-item"
+              onSelect={() => onSchedule(opt.getTimestamp())}
+            >
+              {opt.label}
+            </DropdownMenu.Item>
+          ))}
+          <DropdownMenu.Separator className="dropdown-separator" />
+          <DropdownMenu.Item
+            className="dropdown-item"
+            onSelect={(e) => {
+              e.preventDefault();
+              setShowCustom(true);
+            }}
+          >
+            Custom time...
+          </DropdownMenu.Item>
+          {showCustom && (
+            <div className="schedule-custom" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="datetime-local"
+                className="schedule-custom-input"
+                onChange={(e) => {
+                  const ts = new Date(e.target.value).getTime();
+                  if (ts > Date.now()) {
+                    onSchedule(ts);
+                    setShowCustom(false);
+                  }
+                }}
+              />
+            </div>
+          )}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 
@@ -220,6 +352,11 @@ export default function ThreadList() {
     state.selectedChannelId,
   );
 
+  // Pending scheduled messages for this channel
+  const pendingScheduled = state.scheduledMessages.filter(
+    (m) => m.channelId === state.selectedChannelId,
+  );
+
   const handleSelectThread = useCallback(
     (threadId: string) => {
       dispatch({ type: "SELECT_THREAD", threadId });
@@ -230,18 +367,45 @@ export default function ThreadList() {
   const handleSendPrompt = useCallback(() => {
     if (!state.selectedChannelId) return;
     const text = prompt.trim();
-    if (!text) return;
+    // Allow empty prompt — creates thread with placeholder name
     threadCounter++;
     const id = `thread-${Date.now()}-${threadCounter}`;
     dispatch({
       type: "CREATE_THREAD",
       id,
       channelId: state.selectedChannelId,
-      title: text,
+      title: text || "New thread",
       ptyId: 0,
     });
     setPrompt("");
   }, [state.selectedChannelId, prompt, dispatch]);
+
+  const handleScheduleSend = useCallback(
+    (timestamp: number) => {
+      if (!state.selectedChannelId) return;
+      const text = prompt.trim();
+      if (!text) return;
+      const id = `sched-${Date.now()}-${threadCounter++}`;
+      dispatch({
+        type: "SCHEDULE_MESSAGE",
+        message: {
+          id,
+          channelId: state.selectedChannelId,
+          prompt: text,
+          scheduledAt: timestamp,
+        },
+      });
+      setPrompt("");
+    },
+    [state.selectedChannelId, prompt, dispatch],
+  );
+
+  const handleRename = useCallback(
+    (threadId: string, title: string) => {
+      dispatch({ type: "RENAME_THREAD", threadId, title });
+    },
+    [dispatch],
+  );
 
   const handleContextAction = useCallback(
     (threadId: string, action: string, snoozeUntil?: number) => {
@@ -270,6 +434,9 @@ export default function ThreadList() {
           break;
         case "kill":
           dispatch({ type: "KILL_THREAD_PTY", threadId });
+          break;
+        case "rename":
+          // No-op here; rename is handled via double-click inline edit
           break;
       }
     },
@@ -359,6 +526,7 @@ export default function ThreadList() {
           selectedThreadId={state.selectedThreadId}
           onSelectThread={handleSelectThread}
           onContextAction={handleContextAction}
+          onRename={handleRename}
         />
         <ThreadGroup
           title="Snoozed"
@@ -366,6 +534,7 @@ export default function ThreadList() {
           selectedThreadId={state.selectedThreadId}
           onSelectThread={handleSelectThread}
           onContextAction={handleContextAction}
+          onRename={handleRename}
         />
         <ThreadGroup
           title="Done"
@@ -373,14 +542,42 @@ export default function ThreadList() {
           selectedThreadId={state.selectedThreadId}
           onSelectThread={handleSelectThread}
           onContextAction={handleContextAction}
+          onRename={handleRename}
           defaultCollapsed
         />
         {channelThreads.length === 0 && (
           <div className="thread-list-empty-body">
-            <p>No threads yet — type a prompt below</p>
+            <p>No threads yet — type a prompt or press Enter</p>
           </div>
         )}
       </div>
+
+      {/* Scheduled messages indicator */}
+      {pendingScheduled.length > 0 && (
+        <div className="scheduled-list">
+          {pendingScheduled.map((m) => (
+            <div key={m.id} className="scheduled-item">
+              <span className="scheduled-icon">{"\u23F0"}</span>
+              <span className="scheduled-text">{m.prompt}</span>
+              <span className="scheduled-time">
+                {new Date(m.scheduledAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+              <button
+                type="button"
+                className="scheduled-cancel"
+                onClick={() =>
+                  dispatch({ type: "CANCEL_SCHEDULED", messageId: m.id })
+                }
+              >
+                {"\u2715"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       <form
         className="compose-bar"
@@ -393,14 +590,14 @@ export default function ThreadList() {
           ref={inputRef}
           className="compose-input"
           type="text"
-          placeholder="New thread..."
+          placeholder="New thread... (Enter to start)"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
         />
+        <ScheduleDropdown onSchedule={handleScheduleSend} />
         <button
           type="submit"
           className="compose-send"
-          disabled={!prompt.trim()}
         >
           &uarr;
         </button>
