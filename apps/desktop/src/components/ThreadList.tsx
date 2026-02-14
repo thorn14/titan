@@ -1,7 +1,14 @@
-import { useState, useCallback, useRef, useEffect, type MouseEvent } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useAppState, useAppDispatch } from "../store";
+import { invoke } from "@tauri-apps/api/core";
+import {
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { SNOOZE_OPTIONS } from "../snooze";
+import { useAppDispatch, useAppState } from "../store";
 import type { Thread, ThreadStatus } from "../types";
 
 let threadCounter = 0;
@@ -27,11 +34,13 @@ const STATUS_ICONS: Record<ThreadStatus, string> = {
 function ThreadRow({
   thread,
   isSelected,
+  showBranch,
   onSelect,
   onContextAction,
 }: {
   thread: Thread;
   isSelected: boolean;
+  showBranch: boolean;
   onSelect: () => void;
   onContextAction: (
     threadId: string,
@@ -55,11 +64,12 @@ function ThreadRow({
         <div className="thread-row-left">
           {thread.hasUnread && <span className="unread-dot" />}
           <div className="thread-row-text">
+            {showBranch && thread.branch && (
+              <span className="thread-branch-badge">{thread.branch}</span>
+            )}
             <span className="thread-title">{thread.title}</span>
             {thread.lastOutputPreview && (
-              <span className="thread-preview">
-                {thread.lastOutputPreview}
-              </span>
+              <span className="thread-preview">{thread.lastOutputPreview}</span>
             )}
           </div>
         </div>
@@ -78,56 +88,82 @@ function ThreadRow({
       <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger className="thread-row-menu-anchor" />
         <DropdownMenu.Portal>
-        <DropdownMenu.Content className="dropdown-content" sideOffset={4}>
-          <DropdownMenu.Item
-            className="dropdown-item"
-            onSelect={() => onContextAction(thread.id, "active")}
-          >
-            {"\u25B6"} Mark Active
-          </DropdownMenu.Item>
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger className="dropdown-item dropdown-sub-trigger">
-              {"\u23F8"} Snooze...
-              <span className="dropdown-sub-arrow">&rsaquo;</span>
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.SubContent
-                className="dropdown-content"
-                sideOffset={4}
-              >
-                {SNOOZE_OPTIONS.map((opt) => (
+          <DropdownMenu.Content className="dropdown-content" sideOffset={4}>
+            <DropdownMenu.Item
+              className="dropdown-item"
+              onSelect={() => onContextAction(thread.id, "active")}
+            >
+              {"\u25B6"} Mark Active
+            </DropdownMenu.Item>
+            <DropdownMenu.Sub>
+              <DropdownMenu.SubTrigger className="dropdown-item dropdown-sub-trigger">
+                {"\u23F8"} Snooze...
+                <span className="dropdown-sub-arrow">&rsaquo;</span>
+              </DropdownMenu.SubTrigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.SubContent
+                  className="dropdown-content"
+                  sideOffset={4}
+                >
+                  {SNOOZE_OPTIONS.map((opt) => (
+                    <DropdownMenu.Item
+                      key={opt.label}
+                      className="dropdown-item"
+                      onSelect={() =>
+                        onContextAction(thread.id, "snooze", opt.getTimestamp())
+                      }
+                    >
+                      {opt.label}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.SubContent>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Sub>
+            <DropdownMenu.Item
+              className="dropdown-item"
+              onSelect={() => onContextAction(thread.id, "done")}
+            >
+              {"\u2713"} Mark as Done
+            </DropdownMenu.Item>
+            {showBranch && (
+              <>
+                <DropdownMenu.Separator className="dropdown-separator" />
+                {thread.branch ? (
+                  <>
+                    <DropdownMenu.Item
+                      className="dropdown-item"
+                      onSelect={() => onContextAction(thread.id, "copy-branch")}
+                    >
+                      Copy branch name
+                    </DropdownMenu.Item>
+                    <DropdownMenu.Item
+                      className="dropdown-item"
+                      onSelect={() =>
+                        onContextAction(thread.id, "detach-branch")
+                      }
+                    >
+                      Detach branch
+                    </DropdownMenu.Item>
+                  </>
+                ) : (
                   <DropdownMenu.Item
-                    key={opt.label}
                     className="dropdown-item"
-                    onSelect={() =>
-                      onContextAction(
-                        thread.id,
-                        "snooze",
-                        opt.getTimestamp(),
-                      )
-                    }
+                    onSelect={() => onContextAction(thread.id, "attach-branch")}
                   >
-                    {opt.label}
+                    Attach branch...
                   </DropdownMenu.Item>
-                ))}
-              </DropdownMenu.SubContent>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Sub>
-          <DropdownMenu.Item
-            className="dropdown-item"
-            onSelect={() => onContextAction(thread.id, "done")}
-          >
-            {"\u2713"} Mark as Done
-          </DropdownMenu.Item>
-          <DropdownMenu.Separator className="dropdown-separator" />
-          <DropdownMenu.Item
-            className="dropdown-item dropdown-item-danger"
-            onSelect={() => onContextAction(thread.id, "kill")}
-          >
-            Kill Terminal
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+                )}
+              </>
+            )}
+            <DropdownMenu.Separator className="dropdown-separator" />
+            <DropdownMenu.Item
+              className="dropdown-item dropdown-item-danger"
+              onSelect={() => onContextAction(thread.id, "kill")}
+            >
+              Kill Terminal
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
       </DropdownMenu.Root>
     </div>
   );
@@ -137,6 +173,7 @@ function ThreadGroup({
   title,
   threads,
   selectedThreadId,
+  showBranch,
   onSelectThread,
   onContextAction,
   defaultCollapsed,
@@ -144,6 +181,7 @@ function ThreadGroup({
   title: string;
   threads: Thread[];
   selectedThreadId: string | null;
+  showBranch: boolean;
   onSelectThread: (id: string) => void;
   onContextAction: (
     threadId: string,
@@ -176,6 +214,7 @@ function ThreadGroup({
               key={thread.id}
               thread={thread}
               isSelected={thread.id === selectedThreadId}
+              showBranch={showBranch}
               onSelect={() => onSelectThread(thread.id)}
               onContextAction={onContextAction}
             />
@@ -186,12 +225,132 @@ function ThreadGroup({
   );
 }
 
+function BranchPicker({
+  rootPath,
+  onSelect,
+  onClose,
+}: {
+  rootPath: string;
+  onSelect: (branch: string, autoCreated: boolean) => void;
+  onClose: () => void;
+}) {
+  const [branches, setBranches] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [newBranch, setNewBranch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    invoke<string[]>("git_list_branches", { path: rootPath })
+      .then((b) => {
+        setBranches(b);
+        setLoading(false);
+      })
+      .catch((e) => {
+        setError(String(e));
+        setLoading(false);
+      });
+  }, [rootPath]);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const handleCreateBranch = useCallback(async () => {
+    const name = newBranch.trim();
+    if (!name) return;
+    setCreating(true);
+    try {
+      const exists = await invoke<boolean>("git_branch_exists", {
+        path: rootPath,
+        branch: name,
+      });
+      if (exists) {
+        onSelect(name, false);
+      } else {
+        await invoke("git_create_branch", { path: rootPath, branch: name });
+        onSelect(name, true);
+      }
+    } catch (e) {
+      setError(String(e));
+      setCreating(false);
+    }
+  }, [newBranch, rootPath, onSelect]);
+
+  return (
+    <div className="branch-picker">
+      <div className="branch-picker-header">
+        <span className="branch-picker-title">Attach branch</span>
+        <button type="button" className="branch-picker-close" onClick={onClose}>
+          &times;
+        </button>
+      </div>
+      <div className="branch-picker-create">
+        <input
+          ref={inputRef}
+          className="branch-picker-input"
+          type="text"
+          placeholder="New branch name..."
+          value={newBranch}
+          onChange={(e) => setNewBranch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleCreateBranch();
+            }
+            if (e.key === "Escape") onClose();
+          }}
+          disabled={creating}
+        />
+        <button
+          type="button"
+          className="branch-picker-create-btn"
+          disabled={!newBranch.trim() || creating}
+          onClick={handleCreateBranch}
+        >
+          {creating ? "..." : "+"}
+        </button>
+      </div>
+      {error && <div className="branch-picker-error">{error}</div>}
+      <div className="branch-picker-list">
+        {loading ? (
+          <div className="branch-picker-empty">Loading...</div>
+        ) : branches.length === 0 ? (
+          <div className="branch-picker-empty">No branches found</div>
+        ) : (
+          branches.map((b) => (
+            <button
+              key={b}
+              type="button"
+              className="branch-picker-item"
+              onClick={() => onSelect(b, false)}
+            >
+              {b}
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ThreadList() {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const [prompt, setPrompt] = useState("");
+  const [branchPickerOpen, setBranchPickerOpen] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<string | null>(null);
+  const [selectedBranchAutoCreated, setSelectedBranchAutoCreated] =
+    useState(false);
+  // Track which thread to show the attach-branch picker for (context menu)
+  const [attachPickerThreadId, setAttachPickerThreadId] = useState<
+    string | null
+  >(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  const gitEnabled = state.gitStatus?.gitInstalled && state.gitStatus?.isRepo;
 
   const channelThreads = state.threads.filter(
     (t) => t.channelId === state.selectedChannelId,
@@ -215,10 +374,7 @@ export default function ThreadList() {
     }
     return "";
   }
-  const channelName = findChannelName(
-    state.channels,
-    state.selectedChannelId,
-  );
+  const channelName = findChannelName(state.channels, state.selectedChannelId);
 
   const handleSelectThread = useCallback(
     (threadId: string) => {
@@ -239,9 +395,20 @@ export default function ThreadList() {
       channelId: state.selectedChannelId,
       title: text,
       ptyId: 0,
+      branch: selectedBranch,
+      branchAutoCreated: selectedBranchAutoCreated,
     });
     setPrompt("");
-  }, [state.selectedChannelId, prompt, dispatch]);
+    setSelectedBranch(null);
+    setSelectedBranchAutoCreated(false);
+    setBranchPickerOpen(false);
+  }, [
+    state.selectedChannelId,
+    prompt,
+    selectedBranch,
+    selectedBranchAutoCreated,
+    dispatch,
+  ]);
 
   const handleContextAction = useCallback(
     (threadId: string, action: string, snoozeUntil?: number) => {
@@ -271,9 +438,22 @@ export default function ThreadList() {
         case "kill":
           dispatch({ type: "KILL_THREAD_PTY", threadId });
           break;
+        case "detach-branch":
+          dispatch({ type: "DETACH_BRANCH", threadId });
+          break;
+        case "copy-branch": {
+          const thread = state.threads.find((t) => t.id === threadId);
+          if (thread?.branch) {
+            navigator.clipboard.writeText(thread.branch);
+          }
+          break;
+        }
+        case "attach-branch":
+          setAttachPickerThreadId(threadId);
+          break;
       }
     },
-    [dispatch],
+    [dispatch, state.threads],
   );
 
   // Keyboard shortcuts
@@ -311,7 +491,9 @@ export default function ThreadList() {
         let nextIdx: number;
         if (e.key === "ArrowDown") {
           nextIdx =
-            currentIdx < 0 ? 0 : Math.min(currentIdx + 1, flatThreads.length - 1);
+            currentIdx < 0
+              ? 0
+              : Math.min(currentIdx + 1, flatThreads.length - 1);
         } else {
           nextIdx =
             currentIdx < 0
@@ -357,6 +539,7 @@ export default function ThreadList() {
           title="Active"
           threads={active}
           selectedThreadId={state.selectedThreadId}
+          showBranch={!!gitEnabled}
           onSelectThread={handleSelectThread}
           onContextAction={handleContextAction}
         />
@@ -364,6 +547,7 @@ export default function ThreadList() {
           title="Snoozed"
           threads={snoozed}
           selectedThreadId={state.selectedThreadId}
+          showBranch={!!gitEnabled}
           onSelectThread={handleSelectThread}
           onContextAction={handleContextAction}
         />
@@ -371,6 +555,7 @@ export default function ThreadList() {
           title="Done"
           threads={done}
           selectedThreadId={state.selectedThreadId}
+          showBranch={!!gitEnabled}
           onSelectThread={handleSelectThread}
           onContextAction={handleContextAction}
           defaultCollapsed
@@ -382,29 +567,86 @@ export default function ThreadList() {
         )}
       </div>
 
-      <form
-        className="compose-bar"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSendPrompt();
-        }}
-      >
-        <input
-          ref={inputRef}
-          className="compose-input"
-          type="text"
-          placeholder="New thread..."
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+      {/* Attach-branch picker triggered from context menu */}
+      {attachPickerThreadId && state.rootPath && (
+        <BranchPicker
+          rootPath={state.rootPath}
+          onSelect={(branch, autoCreated) => {
+            dispatch({
+              type: "ATTACH_BRANCH",
+              threadId: attachPickerThreadId,
+              branch,
+              autoCreated,
+            });
+            setAttachPickerThreadId(null);
+          }}
+          onClose={() => setAttachPickerThreadId(null)}
         />
-        <button
-          type="submit"
-          className="compose-send"
-          disabled={!prompt.trim()}
+      )}
+
+      <div className="compose-area">
+        {gitEnabled && (
+          <div className="compose-branch-row">
+            {selectedBranch ? (
+              <span className="compose-branch-selected">
+                <span className="compose-branch-name">{selectedBranch}</span>
+                <button
+                  type="button"
+                  className="compose-branch-clear"
+                  onClick={() => {
+                    setSelectedBranch(null);
+                    setSelectedBranchAutoCreated(false);
+                  }}
+                >
+                  &times;
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                className="compose-branch-toggle"
+                onClick={() => setBranchPickerOpen(!branchPickerOpen)}
+              >
+                {branchPickerOpen ? "Hide branches" : "Branch..."}
+              </button>
+            )}
+          </div>
+        )}
+        {branchPickerOpen && !selectedBranch && state.rootPath && (
+          <BranchPicker
+            rootPath={state.rootPath}
+            onSelect={(branch, autoCreated) => {
+              setSelectedBranch(branch);
+              setSelectedBranchAutoCreated(autoCreated);
+              setBranchPickerOpen(false);
+            }}
+            onClose={() => setBranchPickerOpen(false)}
+          />
+        )}
+        <form
+          className="compose-bar"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendPrompt();
+          }}
         >
-          &uarr;
-        </button>
-      </form>
+          <input
+            ref={inputRef}
+            className="compose-input"
+            type="text"
+            placeholder="New thread..."
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+          />
+          <button
+            type="submit"
+            className="compose-send"
+            disabled={!prompt.trim()}
+          >
+            &uarr;
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -610,6 +610,20 @@ button {
   white-space: nowrap;
 }
 
+.thread-branch-badge {
+  font-size: 10px;
+  font-family: "SF Mono", Menlo, monospace;
+  color: var(--accent);
+  background: var(--accent-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+  display: inline-block;
+}
+
 .thread-preview {
   font-size: 11px;
   color: var(--text-dim);
@@ -895,6 +909,233 @@ button {
 .dropdown-item-danger[data-highlighted] {
   background: var(--red-bg);
   color: var(--red);
+}
+
+/* ── Branch picker ─────────────────────────────────── */
+.compose-area {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+}
+
+.compose-area .compose-bar {
+  border-top: none;
+}
+
+.compose-branch-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px 0;
+}
+
+.compose-branch-toggle {
+  background: none;
+  border: 1px solid var(--border-hover);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.compose-branch-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.compose-branch-selected {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+}
+
+.compose-branch-name {
+  font-family: "SF Mono", Menlo, monospace;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 160px;
+}
+
+.compose-branch-clear {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.compose-branch-clear:hover {
+  color: var(--text);
+}
+
+.branch-picker {
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  max-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.branch-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+}
+
+.branch-picker-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.branch-picker-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0 4px;
+}
+
+.branch-picker-close:hover {
+  color: var(--text);
+}
+
+.branch-picker-create {
+  display: flex;
+  gap: 4px;
+  padding: 0 10px 6px;
+}
+
+.branch-picker-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  background: var(--panel);
+  border: 1px solid var(--border-hover);
+  border-radius: 4px;
+  color: var(--text-bright);
+  font-size: 11px;
+  font-family: "SF Mono", Menlo, monospace;
+  outline: none;
+}
+
+.branch-picker-input:focus {
+  border-color: var(--accent);
+}
+
+.branch-picker-input::placeholder {
+  color: var(--text-faint);
+}
+
+.branch-picker-create-btn {
+  background: var(--accent);
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  width: 26px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.branch-picker-create-btn:hover {
+  background: var(--accent-hover);
+}
+
+.branch-picker-create-btn:disabled {
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: default;
+}
+
+.branch-picker-error {
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--red);
+}
+
+.branch-picker-list {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.branch-picker-empty {
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+.branch-picker-item {
+  display: block;
+  width: 100%;
+  padding: 4px 10px;
+  background: none;
+  border: none;
+  text-align: left;
+  color: var(--text);
+  font-size: 11px;
+  font-family: "SF Mono", Menlo, monospace;
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+
+.branch-picker-item:hover {
+  background: var(--border);
+  color: var(--text-bright);
+}
+
+/* ── Branch banner (terminal) ──────────────────────── */
+.branch-banner {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: var(--accent-bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.branch-banner-text {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.branch-banner-text code {
+  font-family: "SF Mono", Menlo, monospace;
+  color: var(--accent);
+  background: none;
+  padding: 0;
+}
+
+/* ── Reply branch ──────────────────────────────────── */
+.reply-branch {
+  font-size: 10px;
+  font-family: "SF Mono", Menlo, monospace;
+  color: var(--accent);
+  background: var(--accent-bg);
+  padding: 0 4px;
+  border-radius: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+  display: inline-block;
 }
 
 /* ── Scrollbar ─────────────────────────────────────── */

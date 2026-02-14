@@ -1,11 +1,17 @@
 import {
-  createContext,
-  useContext,
   type Dispatch,
   type ReactNode,
+  createContext,
+  useContext,
 } from "react";
-import { useReducer, createElement } from "react";
-import type { AppState, Channel, Thread, ThreadStatus } from "./types";
+import { createElement, useReducer } from "react";
+import type {
+  AppState,
+  Channel,
+  GitStatus,
+  Thread,
+  ThreadStatus,
+} from "./types";
 
 export type Action =
   | { type: "SET_CHANNELS"; channels: Channel[]; rootPath: string }
@@ -15,6 +21,8 @@ export type Action =
       channelId: string;
       title: string;
       ptyId: number;
+      branch?: string | null;
+      branchAutoCreated?: boolean;
     }
   | { type: "SELECT_THREAD"; threadId: string }
   | {
@@ -30,7 +38,15 @@ export type Action =
   | { type: "WAKE_SNOOZED" }
   | { type: "KILL_THREAD_PTY"; threadId: string }
   | { type: "SET_PTY_EXITED"; threadId: string; exitCode: number }
-  | { type: "SET_PTY_RUNNING"; threadId: string };
+  | { type: "SET_PTY_RUNNING"; threadId: string }
+  | { type: "SET_GIT_STATUS"; gitStatus: GitStatus }
+  | {
+      type: "ATTACH_BRANCH";
+      threadId: string;
+      branch: string;
+      autoCreated?: boolean;
+    }
+  | { type: "DETACH_BRANCH"; threadId: string };
 
 const initialState: AppState = {
   channels: [],
@@ -38,6 +54,7 @@ const initialState: AppState = {
   selectedChannelId: null,
   selectedThreadId: null,
   rootPath: null,
+  gitStatus: null,
 };
 
 function deriveUnread(
@@ -74,6 +91,8 @@ function reducer(state: AppState, action: Action): AppState {
         lastOutputPreview: null,
         ptyRunning: true,
         ptyExitCode: null,
+        branch: action.branch ?? null,
+        branchAutoCreated: action.branchAutoCreated ?? false,
       };
       return {
         ...state,
@@ -176,9 +195,7 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "KILL_THREAD_PTY": {
       const threads = state.threads.map((t) =>
-        t.id === action.threadId
-          ? { ...t, ptyId: null, ptyRunning: false }
-          : t,
+        t.id === action.threadId ? { ...t, ptyId: null, ptyRunning: false } : t,
       );
       return { ...state, threads };
     }
@@ -196,6 +213,31 @@ function reducer(state: AppState, action: Action): AppState {
       const threads = state.threads.map((t) =>
         t.id === action.threadId
           ? { ...t, ptyRunning: true, ptyExitCode: null }
+          : t,
+      );
+      return { ...state, threads };
+    }
+
+    case "SET_GIT_STATUS":
+      return { ...state, gitStatus: action.gitStatus };
+
+    case "ATTACH_BRANCH": {
+      const threads = state.threads.map((t) =>
+        t.id === action.threadId
+          ? {
+              ...t,
+              branch: action.branch,
+              branchAutoCreated: action.autoCreated ?? false,
+            }
+          : t,
+      );
+      return { ...state, threads };
+    }
+
+    case "DETACH_BRANCH": {
+      const threads = state.threads.map((t) =>
+        t.id === action.threadId
+          ? { ...t, branch: null, branchAutoCreated: false }
           : t,
       );
       return { ...state, threads };

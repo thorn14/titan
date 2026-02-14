@@ -22,6 +22,14 @@ export interface Thread {
   lastOutputPreview: string | null;
   ptyRunning: boolean;
   ptyExitCode: number | null;
+  branch: string | null;
+  branchAutoCreated: boolean;
+}
+
+export interface GitStatus {
+  gitInstalled: boolean;
+  isRepo: boolean;
+  userConfigured: boolean;
 }
 
 export interface AppState {
@@ -30,4 +38,5 @@ export interface AppState {
   selectedChannelId: string | null;
   selectedThreadId: string | null;
   rootPath: string | null;
+  gitStatus: GitStatus | null;
 }

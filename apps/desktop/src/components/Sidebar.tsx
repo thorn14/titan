@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useAppState, useAppDispatch } from "../store";
+import { useCallback, useMemo, useState } from "react";
+import { useAppDispatch, useAppState } from "../store";
 import type { Channel, Thread } from "../types";
 
 interface DirEntry {
@@ -155,6 +155,32 @@ export default function Sidebar() {
       rootPath: selected,
     });
     dispatch({ type: "SELECT_CHANNEL", channelId: root.id });
+
+    // Detect git availability for branch features
+    try {
+      const status = await invoke<{
+        git_installed: boolean;
+        is_repo: boolean;
+        user_configured: boolean;
+      }>("git_status", { path: selected });
+      dispatch({
+        type: "SET_GIT_STATUS",
+        gitStatus: {
+          gitInstalled: status.git_installed,
+          isRepo: status.is_repo,
+          userConfigured: status.user_configured,
+        },
+      });
+    } catch {
+      dispatch({
+        type: "SET_GIT_STATUS",
+        gitStatus: {
+          gitInstalled: false,
+          isRepo: false,
+          userConfigured: false,
+        },
+      });
+    }
   }, [dispatch]);
 
   const handleSelectChannel = useCallback(
@@ -250,9 +276,7 @@ export default function Sidebar() {
                   key={thread.id}
                   type="button"
                   className="reply-row"
-                  onClick={() =>
-                    handleSelectReply(thread.id, thread.channelId)
-                  }
+                  onClick={() => handleSelectReply(thread.id, thread.channelId)}
                 >
                   <div className="reply-row-top">
                     <span className="reply-channel">
@@ -265,6 +289,9 @@ export default function Sidebar() {
                     )}
                   </div>
                   <span className="reply-title">{thread.title}</span>
+                  {state.gitStatus?.isRepo && thread.branch && (
+                    <span className="reply-branch">{thread.branch}</span>
+                  )}
                   {thread.lastOutputPreview && (
                     <span className="reply-preview">
                       {thread.lastOutputPreview}
