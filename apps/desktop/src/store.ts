@@ -5,7 +5,15 @@ import {
   type ReactNode,
 } from "react";
 import { useReducer, createElement } from "react";
-import type { AppState, Channel, Thread, ThreadStatus } from "./types";
+import type {
+  AppState,
+  AppView,
+  Channel,
+  ScheduledMessage,
+  Thread,
+  ThreadStatus,
+  Theme,
+} from "./types";
 
 export type Action =
   | { type: "SET_CHANNELS"; channels: Channel[]; rootPath: string }
@@ -30,7 +38,31 @@ export type Action =
   | { type: "WAKE_SNOOZED" }
   | { type: "KILL_THREAD_PTY"; threadId: string }
   | { type: "SET_PTY_EXITED"; threadId: string; exitCode: number }
-  | { type: "SET_PTY_RUNNING"; threadId: string };
+  | { type: "SET_PTY_RUNNING"; threadId: string }
+  | { type: "TOGGLE_THEME" }
+  | { type: "SET_VIEW"; view: AppView }
+  | { type: "RENAME_THREAD"; threadId: string; title: string }
+  | { type: "SCHEDULE_MESSAGE"; message: ScheduledMessage }
+  | { type: "CANCEL_SCHEDULED"; messageId: string }
+  | { type: "FIRE_SCHEDULED"; messageId: string }
+  | { type: "SET_AUTO_RUN_COMMAND"; command: string | null }
+  | { type: "HYDRATE"; state: Partial<AppState> };
+
+function loadTheme(): Theme {
+  try {
+    const saved = localStorage.getItem("titan:theme");
+    if (saved === "light" || saved === "dark") return saved;
+  } catch {}
+  return "dark";
+}
+
+function loadAutoRunCommand(): string | null {
+  try {
+    const saved = localStorage.getItem("titan:autoRunCommand");
+    if (saved !== null) return saved || null;
+  } catch {}
+  return "claude";
+}
 
 const initialState: AppState = {
   channels: [],
@@ -38,6 +70,10 @@ const initialState: AppState = {
   selectedChannelId: null,
   selectedThreadId: null,
   rootPath: null,
+  theme: loadTheme(),
+  currentView: "threads",
+  scheduledMessages: [],
+  autoRunCommand: loadAutoRunCommand(),
 };
 
 function deriveUnread(
@@ -74,12 +110,14 @@ function reducer(state: AppState, action: Action): AppState {
         lastOutputPreview: null,
         ptyRunning: true,
         ptyExitCode: null,
+        autoTitled: !action.title || action.title === "New thread",
       };
       return {
         ...state,
         threads: [...state.threads, thread],
         selectedThreadId: action.id,
         selectedChannelId: action.channelId,
+        currentView: "threads",
       };
     }
 
@@ -134,6 +172,7 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         selectedChannelId: action.channelId,
         selectedThreadId: null,
+        currentView: "threads",
       };
 
     case "SET_OUTPUT_PREVIEW": {
@@ -177,7 +216,7 @@ function reducer(state: AppState, action: Action): AppState {
     case "KILL_THREAD_PTY": {
       const threads = state.threads.map((t) =>
         t.id === action.threadId
-          ? { ...t, ptyId: null, ptyRunning: false }
+          ? { ...t, ptyId: null, ptyRunning: false, ptyExitCode: -1, status: "inactive" as const }
           : t,
       );
       return { ...state, threads };
@@ -200,6 +239,63 @@ function reducer(state: AppState, action: Action): AppState {
       );
       return { ...state, threads };
     }
+
+    case "TOGGLE_THEME": {
+      const newTheme: Theme = state.theme === "dark" ? "light" : "dark";
+      try {
+        localStorage.setItem("titan:theme", newTheme);
+      } catch {}
+      return { ...state, theme: newTheme };
+    }
+
+    case "SET_AUTO_RUN_COMMAND": {
+      const cmd = action.command;
+      try {
+        if (cmd) {
+          localStorage.setItem("titan:autoRunCommand", cmd);
+        } else {
+          localStorage.removeItem("titan:autoRunCommand");
+        }
+      } catch {}
+      return { ...state, autoRunCommand: cmd };
+    }
+
+    case "SET_VIEW":
+      return { ...state, currentView: action.view };
+
+    case "RENAME_THREAD": {
+      const threads = state.threads.map((t) =>
+        t.id === action.threadId
+          ? { ...t, title: action.title, autoTitled: false }
+          : t,
+      );
+      return { ...state, threads };
+    }
+
+    case "SCHEDULE_MESSAGE":
+      return {
+        ...state,
+        scheduledMessages: [...state.scheduledMessages, action.message],
+      };
+
+    case "CANCEL_SCHEDULED":
+      return {
+        ...state,
+        scheduledMessages: state.scheduledMessages.filter(
+          (m) => m.id !== action.messageId,
+        ),
+      };
+
+    case "FIRE_SCHEDULED":
+      return {
+        ...state,
+        scheduledMessages: state.scheduledMessages.filter(
+          (m) => m.id !== action.messageId,
+        ),
+      };
+
+    case "HYDRATE":
+      return { ...state, ...action.state };
 
     default:
       return state;

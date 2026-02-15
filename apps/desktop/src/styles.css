@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 /* ── Reset ──────────────────────────────────────────── */
 *,
 *::before,
@@ -15,21 +17,22 @@ body,
   overflow: hidden;
 }
 
-/* ── Design tokens ────────────────────────────────── */
-:root {
-  --bg:           hsl(240, 33%, 5%);
-  --panel:        hsl(240, 24%, 10%);
-  --panel-hover:  hsl(240, 24%, 12%);
-  --border:       hsl(240, 24%, 14%);
-  --border-hover: hsl(240, 24%, 18%);
-  --surface:      hsl(240, 24%, 16%);
-  --terminal-bg:  hsl(240, 43%, 14%);
+/* ── Design tokens (dark – stone palette) ──────────── */
+:root,
+[data-theme="dark"] {
+  --bg:           #0c0a09; /* stone-950 */
+  --panel:        #1c1917; /* stone-900 */
+  --panel-hover:  #292524; /* stone-800 */
+  --border:       #292524; /* stone-800 */
+  --border-hover: #44403c; /* stone-700 */
+  --surface:      #44403c; /* stone-700 */
+  --terminal-bg:  #0c0a09; /* stone-950 */
 
-  --text:         hsl(240, 20%, 78%);
-  --text-bright:  hsl(240, 30%, 92%);
-  --text-muted:   hsl(240, 15%, 50%);
-  --text-dim:     hsl(240, 15%, 38%);
-  --text-faint:   hsl(240, 15%, 30%);
+  --text:         #d6d3d1; /* stone-300 */
+  --text-bright:  #f5f5f4; /* stone-100 */
+  --text-muted:   #a8a29e; /* stone-400 */
+  --text-dim:     #78716c; /* stone-500 */
+  --text-faint:   #57534e; /* stone-600 */
 
   --accent:       hsl(245, 82%, 67%);
   --accent-hover: hsl(245, 75%, 60%);
@@ -40,6 +43,33 @@ body,
   --blue:         hsl(217, 91%, 60%);
   --red:          hsl(0, 84%, 60%);
   --red-bg:       hsla(0, 84%, 60%, 0.1);
+}
+
+/* ── Light mode ───────────────────────────────────── */
+[data-theme="light"] {
+  --bg:           #f5f5f4; /* stone-100 */
+  --panel:        #fafaf9; /* stone-50 */
+  --panel-hover:  #e7e5e4; /* stone-200 */
+  --border:       #e7e5e4; /* stone-200 */
+  --border-hover: #d6d3d1; /* stone-300 */
+  --surface:      #d6d3d1; /* stone-300 */
+  --terminal-bg:  #1c1917; /* keep terminal dark */
+
+  --text:         #44403c; /* stone-700 */
+  --text-bright:  #1c1917; /* stone-900 */
+  --text-muted:   #78716c; /* stone-500 */
+  --text-dim:     #a8a29e; /* stone-400 */
+  --text-faint:   #d6d3d1; /* stone-300 */
+
+  --accent:       hsl(245, 82%, 55%);
+  --accent-hover: hsl(245, 75%, 48%);
+  --accent-bg:    hsla(245, 82%, 55%, 0.08);
+
+  --green:        hsl(142, 71%, 38%);
+  --orange:       hsl(25, 95%, 46%);
+  --blue:         hsl(217, 91%, 50%);
+  --red:          hsl(0, 84%, 50%);
+  --red-bg:       hsla(0, 84%, 50%, 0.08);
 }
 
 body {
@@ -657,6 +687,10 @@ button {
   color: var(--text-dim);
 }
 
+.thread-status-icon.status-inactive {
+  color: var(--red);
+}
+
 .thread-list-empty {
   display: flex;
   align-items: center;
@@ -913,4 +947,288 @@ button {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-hover);
+}
+
+/* ── Sidebar bottom (replies + theme toggle) ─────── */
+.sidebar-bottom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.replies-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  padding: 6px 10px;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.replies-btn:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.replies-btn.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.replies-btn-icon {
+  font-size: 14px;
+}
+
+.theme-toggle-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  flex-shrink: 0;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* ── Settings view ───────────────────────────────── */
+.settings-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 16px;
+}
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 400px;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.settings-field-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-bright);
+}
+
+.settings-field-description {
+  font-size: 11px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.settings-input {
+  padding: 7px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border-hover);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-size: 12px;
+  font-family: "SF Mono", Menlo, monospace;
+  outline: none;
+  transition: border-color 150ms ease;
+}
+
+.settings-input:focus {
+  border-color: var(--accent);
+}
+
+.settings-input::placeholder {
+  color: var(--text-faint);
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-save-btn {
+  padding: 6px 16px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.settings-save-btn:hover {
+  background: var(--accent-hover);
+}
+
+/* Active state for gear icon */
+.theme-toggle-btn.active {
+  color: var(--accent);
+}
+
+/* ── Inline rename ───────────────────────────────── */
+.thread-title-edit {
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text-bright);
+  font-size: inherit;
+  font-family: inherit;
+  padding: 1px 4px;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+}
+
+.thread-toolbar-title-edit {
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text-bright);
+  font-weight: 500;
+  font-size: inherit;
+  font-family: inherit;
+  padding: 1px 6px;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.thread-toolbar-title {
+  cursor: pointer;
+}
+
+/* ── Schedule send ───────────────────────────────── */
+.compose-schedule {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border-hover);
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  flex-shrink: 0;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.compose-schedule:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.schedule-custom {
+  padding: 6px 10px;
+}
+
+.schedule-custom-input {
+  background: var(--bg);
+  border: 1px solid var(--border-hover);
+  border-radius: 4px;
+  color: var(--text-bright);
+  font-size: 11px;
+  font-family: inherit;
+  padding: 4px 6px;
+  outline: none;
+  width: 100%;
+}
+
+.schedule-custom-input:focus {
+  border-color: var(--accent);
+}
+
+/* Scheduled messages list */
+.scheduled-list {
+  border-top: 1px solid var(--border);
+  padding: 4px 10px;
+  flex-shrink: 0;
+}
+
+.scheduled-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.scheduled-icon {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.scheduled-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scheduled-time {
+  flex-shrink: 0;
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+.scheduled-cancel {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0 2px;
+  flex-shrink: 0;
+  transition: color 150ms ease;
+}
+
+.scheduled-cancel:hover {
+  color: var(--red);
+}
+
+/* Snooze-due dot variant */
+.unread-dot.snooze-due {
+  background: var(--orange);
 }
