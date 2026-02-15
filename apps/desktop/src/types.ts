@@ -5,8 +5,10 @@ export interface Channel {
   children: Channel[];
 }
 
-export type ThreadStatus = "active" | "snoozed" | "done";
+export type ThreadStatus = "active" | "snoozed" | "done" | "inactive";
 export type ThreadType = "terminal" | "chat";
+export type Theme = "light" | "dark";
+export type AppView = "threads" | "replies" | "settings";
 
 export interface ChatMessage {
   id: string;
@@ -22,6 +24,13 @@ export interface ProviderConfig {
   baseUrl?: string;
   apiKey?: string;
   defaultModel: string;
+}
+
+export interface ScheduledMessage {
+  id: string;
+  channelId: string;
+  prompt: string;
+  scheduledAt: number;
 }
 
 export interface Thread {
@@ -44,6 +53,7 @@ export interface Thread {
   ptyId: number | null;
   ptyRunning: boolean;
   ptyExitCode: number | null;
+  autoTitled: boolean;
 
   // Chat-specific
   chatMessages: ChatMessage[];
@@ -58,6 +68,10 @@ export interface AppState {
   selectedChannelId: string | null;
   selectedThreadId: string | null;
   rootPath: string | null;
+  theme: Theme;
+  currentView: AppView;
+  scheduledMessages: ScheduledMessage[];
+  autoRunCommand: string | null;
   providers: ProviderConfig[];
   defaultProviderId: string | null;
 }

@@ -7,12 +7,15 @@ import {
 import { createElement, useReducer } from "react";
 import type {
   AppState,
+  AppView,
   Channel,
   ChatMessage,
   ProviderConfig,
+  ScheduledMessage,
   Thread,
   ThreadStatus,
   ThreadType,
+  Theme,
 } from "./types";
 
 export type Action =
@@ -65,7 +68,16 @@ export type Action =
   | { type: "ADD_PROVIDER"; provider: ProviderConfig }
   | { type: "UPDATE_PROVIDER"; provider: ProviderConfig }
   | { type: "REMOVE_PROVIDER"; providerId: string }
-  | { type: "SET_DEFAULT_PROVIDER"; providerId: string };
+  | { type: "SET_DEFAULT_PROVIDER"; providerId: string }
+  // Theme, view, rename, scheduling
+  | { type: "TOGGLE_THEME" }
+  | { type: "SET_VIEW"; view: AppView }
+  | { type: "RENAME_THREAD"; threadId: string; title: string }
+  | { type: "SCHEDULE_MESSAGE"; message: ScheduledMessage }
+  | { type: "CANCEL_SCHEDULED"; messageId: string }
+  | { type: "FIRE_SCHEDULED"; messageId: string }
+  | { type: "SET_AUTO_RUN_COMMAND"; command: string | null }
+  | { type: "HYDRATE"; state: Partial<AppState> };
 
 const PROVIDERS_KEY = "titan:providers";
 const DEFAULT_PROVIDER_KEY = "titan:defaultProviderId";
@@ -96,12 +108,32 @@ function saveDefaultProviderId(id: string | null) {
   }
 }
 
+function loadTheme(): Theme {
+  try {
+    const saved = localStorage.getItem("titan:theme");
+    if (saved === "light" || saved === "dark") return saved;
+  } catch {}
+  return "dark";
+}
+
+function loadAutoRunCommand(): string | null {
+  try {
+    const saved = localStorage.getItem("titan:autoRunCommand");
+    if (saved !== null) return saved || null;
+  } catch {}
+  return "claude";
+}
+
 const initialState: AppState = {
   channels: [],
   threads: [],
   selectedChannelId: null,
   selectedThreadId: null,
   rootPath: null,
+  theme: loadTheme(),
+  currentView: "threads",
+  scheduledMessages: [],
+  autoRunCommand: loadAutoRunCommand(),
   providers: loadProviders(),
   defaultProviderId: loadDefaultProviderId(),
 };
@@ -120,6 +152,7 @@ function makeThread(
     ptyId?: number;
     providerId?: string;
     model?: string;
+    autoTitled?: boolean;
   },
 ): Thread {
   const now = Date.now();
@@ -139,6 +172,7 @@ function makeThread(
     ptyId: base.ptyId ?? null,
     ptyRunning: base.threadType === "terminal",
     ptyExitCode: null,
+    autoTitled: base.autoTitled ?? false,
     chatMessages: [],
     model: base.model ?? null,
     providerId: base.providerId ?? null,
@@ -159,15 +193,17 @@ function reducer(state: AppState, action: Action): AppState {
       const thread = makeThread({
         id: action.id,
         channelId: action.channelId,
-        title: action.title,
+        title: action.title || "New thread",
         threadType: "terminal",
         ptyId: action.ptyId,
+        autoTitled: !action.title || action.title === "New thread",
       });
       return {
         ...state,
         threads: [...state.threads, thread],
         selectedThreadId: action.id,
         selectedChannelId: action.channelId,
+        currentView: "threads",
       };
     }
 
@@ -175,7 +211,7 @@ function reducer(state: AppState, action: Action): AppState {
       const thread = makeThread({
         id: action.id,
         channelId: action.channelId,
-        title: action.title,
+        title: action.title || "New chat",
         threadType: "chat",
         providerId: action.providerId,
         model: action.model,
@@ -185,6 +221,7 @@ function reducer(state: AppState, action: Action): AppState {
         threads: [...state.threads, thread],
         selectedThreadId: action.id,
         selectedChannelId: action.channelId,
+        currentView: "threads",
       };
     }
 
@@ -239,6 +276,7 @@ function reducer(state: AppState, action: Action): AppState {
         ...state,
         selectedChannelId: action.channelId,
         selectedThreadId: null,
+        currentView: "threads",
       };
 
     case "SET_OUTPUT_PREVIEW": {
@@ -281,7 +319,9 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "KILL_THREAD_PTY": {
       const threads = state.threads.map((t) =>
-        t.id === action.threadId ? { ...t, ptyId: null, ptyRunning: false } : t,
+        t.id === action.threadId
+          ? { ...t, ptyId: null, ptyRunning: false, ptyExitCode: -1, status: "inactive" as const }
+          : t,
       );
       return { ...state, threads };
     }
@@ -400,6 +440,63 @@ function reducer(state: AppState, action: Action): AppState {
       saveDefaultProviderId(action.providerId);
       return { ...state, defaultProviderId: action.providerId };
     }
+
+    case "TOGGLE_THEME": {
+      const newTheme: Theme = state.theme === "dark" ? "light" : "dark";
+      try {
+        localStorage.setItem("titan:theme", newTheme);
+      } catch {}
+      return { ...state, theme: newTheme };
+    }
+
+    case "SET_AUTO_RUN_COMMAND": {
+      const cmd = action.command;
+      try {
+        if (cmd) {
+          localStorage.setItem("titan:autoRunCommand", cmd);
+        } else {
+          localStorage.removeItem("titan:autoRunCommand");
+        }
+      } catch {}
+      return { ...state, autoRunCommand: cmd };
+    }
+
+    case "SET_VIEW":
+      return { ...state, currentView: action.view };
+
+    case "RENAME_THREAD": {
+      const threads = state.threads.map((t) =>
+        t.id === action.threadId
+          ? { ...t, title: action.title, autoTitled: false }
+          : t,
+      );
+      return { ...state, threads };
+    }
+
+    case "SCHEDULE_MESSAGE":
+      return {
+        ...state,
+        scheduledMessages: [...state.scheduledMessages, action.message],
+      };
+
+    case "CANCEL_SCHEDULED":
+      return {
+        ...state,
+        scheduledMessages: state.scheduledMessages.filter(
+          (m) => m.id !== action.messageId,
+        ),
+      };
+
+    case "FIRE_SCHEDULED":
+      return {
+        ...state,
+        scheduledMessages: state.scheduledMessages.filter(
+          (m) => m.id !== action.messageId,
+        ),
+      };
+
+    case "HYDRATE":
+      return { ...state, ...action.state };
 
     default:
       return state;
