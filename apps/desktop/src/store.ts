@@ -77,6 +77,7 @@ export type Action =
   | { type: "CANCEL_SCHEDULED"; messageId: string }
   | { type: "FIRE_SCHEDULED"; messageId: string }
   | { type: "SET_AUTO_RUN_COMMAND"; command: string | null }
+  | { type: "DELETE_THREAD"; threadId: string }
   | { type: "HYDRATE"; state: Partial<AppState> };
 
 const PROVIDERS_KEY = "titan:providers";
@@ -494,6 +495,15 @@ function reducer(state: AppState, action: Action): AppState {
           (m) => m.id !== action.messageId,
         ),
       };
+
+    case "DELETE_THREAD": {
+      const threads = state.threads.filter((t) => t.id !== action.threadId);
+      const selectedThreadId =
+        state.selectedThreadId === action.threadId
+          ? null
+          : state.selectedThreadId;
+      return { ...state, threads, selectedThreadId };
+    }
 
     case "HYDRATE":
       return { ...state, ...action.state };

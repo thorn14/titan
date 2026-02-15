@@ -269,6 +269,7 @@ export default function TerminalManager() {
       pendingPrompt?: string,
     ) => {
       const pty = spawn("/bin/zsh", [], {
+        name: "xterm-256color",
         cols: instance.terminal.cols,
         rows: instance.terminal.rows,
         cwd,
@@ -551,9 +552,12 @@ export default function TerminalManager() {
     }
   }, [state.theme]);
 
-  // Handle window resize
+  // Re-fit terminal on any container resize (window, panel drag handles, etc.)
   useEffect(() => {
-    const handleResize = () => {
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
+
+    const observer = new ResizeObserver(() => {
       const selectedId = selectedIdRef.current;
       if (selectedId) {
         const instance = instancesRef.current.get(selectedId);
@@ -561,9 +565,10 @@ export default function TerminalManager() {
           instance.fitAddon.fit();
         }
       }
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    });
+
+    observer.observe(wrapper);
+    return () => observer.disconnect();
   }, []);
 
   // Cleanup on unmount

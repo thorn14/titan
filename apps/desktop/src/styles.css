@@ -20,56 +20,56 @@ body,
 /* ── Design tokens (dark – stone palette) ──────────── */
 :root,
 [data-theme="dark"] {
-  --bg:           #0c0a09; /* stone-950 */
-  --panel:        #1c1917; /* stone-900 */
-  --panel-hover:  #292524; /* stone-800 */
-  --border:       #292524; /* stone-800 */
-  --border-hover: #44403c; /* stone-700 */
-  --surface:      #44403c; /* stone-700 */
-  --terminal-bg:  #0c0a09; /* stone-950 */
+  --bg: var(--color-stone-950); /* stone-950 */
+  --panel: var(--color-stone-900); /* stone-900 */
+  --panel-hover: var(--color-stone-800); /* stone-800 */
+  --border: var(--color-stone-800); /* stone-800 */
+  --border-hover: var(--color-stone-700); /* stone-700 */
+  --surface: var(--color-stone-700); /* stone-700 */
+  --terminal-bg: var(--color-stone-950); /* stone-950 */
 
-  --text:         #d6d3d1; /* stone-300 */
-  --text-bright:  #f5f5f4; /* stone-100 */
-  --text-muted:   #a8a29e; /* stone-400 */
-  --text-dim:     #78716c; /* stone-500 */
-  --text-faint:   #57534e; /* stone-600 */
+  --text: var(--color-stone-300); /* stone-300 */
+  --text-bright: var(--color-stone-100); /* stone-100 */
+  --text-muted: var(--color-stone-400); /* stone-400 */
+  --text-dim: var(--color-stone-500); /* stone-500 */
+  --text-faint: var(--color-stone-600); /* stone-600 */
 
-  --accent:       hsl(245, 82%, 67%);
-  --accent-hover: hsl(245, 75%, 60%);
-  --accent-bg:    hsla(245, 82%, 67%, 0.1);
+  --accent: var(--color-sky-400);
+  --accent-hover: var(--color-sky-300);
+  --accent-bg: var(--color-sky-900);
 
-  --green:        hsl(142, 71%, 45%);
-  --orange:       hsl(25, 95%, 53%);
-  --blue:         hsl(217, 91%, 60%);
-  --red:          hsl(0, 84%, 60%);
-  --red-bg:       hsla(0, 84%, 60%, 0.1);
+  --green: var(--color-emerald-400);
+  --orange: var(--color-orange-400);
+  --blue: var(--color-blue-400);
+  --red: var(--color-red-400);
+  --red-bg: var(--color-red-900);
 }
 
 /* ── Light mode ───────────────────────────────────── */
 [data-theme="light"] {
-  --bg:           #f5f5f4; /* stone-100 */
-  --panel:        #fafaf9; /* stone-50 */
-  --panel-hover:  #e7e5e4; /* stone-200 */
-  --border:       #e7e5e4; /* stone-200 */
-  --border-hover: #d6d3d1; /* stone-300 */
-  --surface:      #d6d3d1; /* stone-300 */
-  --terminal-bg:  #1c1917; /* keep terminal dark */
+  --bg: var(--color-stone-100); /* stone-100 */
+  --panel: var(--color-stone-50); /* stone-50 */
+  --panel-hover: var(--color-stone-200); /* stone-200 */
+  --border: var(--color-stone-200); /* stone-200 */
+  --border-hover: var(--color-stone-300); /* stone-300 */
+  --surface: var(--color-stone-300); /* stone-300 */
+  --terminal-bg: var(--color-stone-950); /* keep terminal dark */
 
-  --text:         #44403c; /* stone-700 */
-  --text-bright:  #1c1917; /* stone-900 */
-  --text-muted:   #78716c; /* stone-500 */
-  --text-dim:     #a8a29e; /* stone-400 */
-  --text-faint:   #d6d3d1; /* stone-300 */
+  --text: var(--color-stone-700); /* stone-700 */
+  --text-bright: var(--color-stone-900); /* stone-900 */
+  --text-muted: var(--color-stone-500); /* stone-500 */
+  --text-dim: var(--color-stone-400); /* stone-400 */
+  --text-faint: var(--color-stone-300); /* stone-300 */
 
-  --accent:       hsl(245, 82%, 55%);
-  --accent-hover: hsl(245, 75%, 48%);
-  --accent-bg:    hsla(245, 82%, 55%, 0.08);
+  --accent: var(--color-sky-700);
+  --accent-hover: var(--color-sky-800);
+  --accent-bg: var(--color-sky-100);
 
-  --green:        hsl(142, 71%, 38%);
-  --orange:       hsl(25, 95%, 46%);
-  --blue:         hsl(217, 91%, 50%);
-  --red:          hsl(0, 84%, 50%);
-  --red-bg:       hsla(0, 84%, 50%, 0.08);
+  --green: var(--color-emerald-700);
+  --orange: var(--color-orange-700);
+  --blue: var(--color-blue-700);
+  --red: var(--color-red-700);
+  --red-bg: var(--color-red-300);
 }
 
 body {
@@ -87,13 +87,24 @@ button {
 
 /* ── Animations ────────────────────────────────────── */
 @keyframes pulse-unread {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
 @keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ── Layout ────────────────────────────────────────── */
@@ -452,64 +463,40 @@ button {
   white-space: nowrap;
 }
 
-/* Compose bar */
-.compose-bar {
+/* Create thread bar */
+.create-thread-bar {
   display: flex;
-  align-items: center;
   gap: 6px;
   padding: 8px 10px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.compose-input {
+.create-thread-btn {
   flex: 1;
-  min-width: 0;
-  padding: 7px 10px;
-  background: var(--bg);
-  border: 1px solid var(--border-hover);
-  border-radius: 8px;
-  color: var(--text-bright);
-  font-size: 12px;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 150ms ease;
-}
-
-.compose-input:focus {
-  border-color: var(--accent);
-}
-
-.compose-input::placeholder {
-  color: var(--text-faint);
-}
-
-.compose-send {
-  width: 26px;
-  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--accent);
-  border: none;
-  border-radius: 50%;
-  color: #fff;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border-hover);
+  border-radius: 8px;
+  color: var(--text-muted);
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
-  flex-shrink: 0;
-  transition: background 150ms ease, opacity 150ms ease;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
 }
 
-.compose-send:hover {
-  background: var(--accent-hover);
+.create-thread-btn:hover {
+  background: var(--panel-hover);
+  color: var(--text-bright);
+  border-color: var(--text-dim);
 }
 
-.compose-send:disabled {
-  background: var(--surface);
-  color: var(--text-dim);
-  cursor: default;
+.create-thread-icon {
+  font-size: 10px;
 }
 
 .thread-list-body {
@@ -705,7 +692,6 @@ button {
   color: var(--text-faint);
 }
 
-
 .thread-list:focus {
   outline: none;
 }
@@ -763,6 +749,8 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
+  flex: 1;
+  min-width: 0;
 }
 
 .thread-toolbar-actions {
@@ -800,6 +788,7 @@ button {
   flex: 1;
   min-height: 0;
   position: relative;
+  background: var(--terminal-bg);
 }
 
 .terminal-manager {
@@ -957,55 +946,42 @@ button {
   margin-right: 4px;
 }
 
-/* ── Thread list settings button ──────────────────── */
-.thread-list-settings-btn {
-  background: none;
-  border: none;
-  color: var(--text-dim);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  transition: color 150ms ease, background 150ms ease;
-  -webkit-app-region: no-drag;
-}
-
-.thread-list-settings-btn:hover {
-  color: var(--text);
-  background: var(--border);
-}
-
-/* ── Compose type toggle ──────────────────────────── */
-.compose-type-toggle {
+/* ── Settings theme toggle ───────────────────────── */
+.settings-theme-toggle {
   display: flex;
-  gap: 2px;
-  flex-shrink: 0;
+  gap: 4px;
 }
 
-.compose-type-btn {
-  width: 24px;
-  height: 24px;
+.settings-theme-btn {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: none;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  color: var(--text-dim);
+  gap: 6px;
+  padding: 7px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border-hover);
+  border-radius: 6px;
+  color: var(--text-muted);
   cursor: pointer;
-  font-size: 11px;
-  transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+  font-size: 12px;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
 }
 
-.compose-type-btn:hover {
+.settings-theme-btn:hover {
   color: var(--text);
-  border-color: var(--border-hover);
+  border-color: var(--text-dim);
 }
 
-.compose-type-btn.active {
+.settings-theme-btn.active {
   color: var(--accent);
   border-color: var(--accent);
   background: var(--accent-bg);
+}
+
+.settings-providers-section {
+  margin-top: 24px;
+  max-width: 400px;
 }
 
 /* ── Sidebar bottom (replies + theme toggle) ─────── */
@@ -1188,48 +1164,6 @@ button {
   outline: none;
   flex: 1;
   min-width: 0;
-}
-
-/* ── Schedule send ───────────────────────────────── */
-.compose-schedule {
-  width: 26px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: 1px solid var(--border-hover);
-  border-radius: 50%;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 12px;
-  flex-shrink: 0;
-  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
-}
-
-.compose-schedule:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.schedule-custom {
-  padding: 6px 10px;
-}
-
-.schedule-custom-input {
-  background: var(--bg);
-  border: 1px solid var(--border-hover);
-  border-radius: 4px;
-  color: var(--text-bright);
-  font-size: 11px;
-  font-family: inherit;
-  padding: 4px 6px;
-  outline: none;
-  width: 100%;
-}
-
-.schedule-custom-input:focus {
-  border-color: var(--accent);
 }
 
 /* Scheduled messages list */
@@ -1422,9 +1356,15 @@ button {
   color: var(--text-bright);
 }
 
-.chat-message-content h1 { font-size: 18px; }
-.chat-message-content h2 { font-size: 16px; }
-.chat-message-content h3 { font-size: 14px; }
+.chat-message-content h1 {
+  font-size: 18px;
+}
+.chat-message-content h2 {
+  font-size: 16px;
+}
+.chat-message-content h3 {
+  font-size: 14px;
+}
 
 .chat-message-content a {
   color: var(--accent);

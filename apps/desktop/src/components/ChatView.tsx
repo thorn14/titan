@@ -18,6 +18,7 @@ const STATUS_LABELS: Record<ThreadStatus, string> = {
   active: "\u25B6 Active",
   snoozed: "\u23F8 Snoozed",
   done: "\u2713 Done",
+  inactive: "\u23F9 Inactive",
 };
 
 function ChatToolbar({ thread }: { thread: Thread }) {

@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/nicoverbruggen/tauri-v2-schema/main/tauri.conf.v2.json",
   "productName": "Titan",
-  "identifier": "com.titan.app",
+  "identifier": "com.titan.desktop",
   "build": {
     "beforeDevCommand": "pnpm vite:dev",
     "devUrl": "http://localhost:1420",

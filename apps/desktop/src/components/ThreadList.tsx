@@ -9,7 +9,6 @@ import {
 import { SNOOZE_OPTIONS } from "../snooze";
 import { useAppDispatch, useAppState } from "../store";
 import type { Thread, ThreadStatus, ThreadType } from "../types";
-import ProviderSettings from "./ProviderSettings";
 
 let threadCounter = 0;
 
@@ -238,6 +237,12 @@ function ThreadRow({
                 Kill Terminal
               </DropdownMenu.Item>
             )}
+            <DropdownMenu.Item
+              className="dropdown-item dropdown-item-danger"
+              onSelect={() => onContextAction(thread.id, "delete")}
+            >
+              Delete
+            </DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
@@ -301,69 +306,9 @@ function ThreadGroup({
   );
 }
 
-function ScheduleDropdown({
-  onSchedule,
-}: {
-  onSchedule: (timestamp: number) => void;
-}) {
-  const [showCustom, setShowCustom] = useState(false);
-
-  return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <button type="button" className="compose-schedule" title="Schedule send">
-          {"\u23F0"}
-        </button>
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content className="dropdown-content" sideOffset={4} align="end">
-          {SNOOZE_OPTIONS.map((opt) => (
-            <DropdownMenu.Item
-              key={opt.label}
-              className="dropdown-item"
-              onSelect={() => onSchedule(opt.getTimestamp())}
-            >
-              {opt.label}
-            </DropdownMenu.Item>
-          ))}
-          <DropdownMenu.Separator className="dropdown-separator" />
-          <DropdownMenu.Item
-            className="dropdown-item"
-            onSelect={(e) => {
-              e.preventDefault();
-              setShowCustom(true);
-            }}
-          >
-            Custom time...
-          </DropdownMenu.Item>
-          {showCustom && (
-            <div className="schedule-custom" onClick={(e) => e.stopPropagation()}>
-              <input
-                type="datetime-local"
-                className="schedule-custom-input"
-                onChange={(e) => {
-                  const ts = new Date(e.target.value).getTime();
-                  if (ts > Date.now()) {
-                    onSchedule(ts);
-                    setShowCustom(false);
-                  }
-                }}
-              />
-            </div>
-          )}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
-  );
-}
-
 export default function ThreadList() {
   const state = useAppState();
   const dispatch = useAppDispatch();
-  const [prompt, setPrompt] = useState("");
-  const [threadType, setThreadType] = useState<ThreadType>("terminal");
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const channelThreads = state.threads.filter(
@@ -403,67 +348,44 @@ export default function ThreadList() {
     [dispatch],
   );
 
-  const handleSendPrompt = useCallback(() => {
+  const handleCreateTerminal = useCallback(() => {
     if (!state.selectedChannelId) return;
-    const text = prompt.trim();
-    // Allow empty prompt — creates thread with placeholder name
     threadCounter++;
     const id = `thread-${Date.now()}-${threadCounter}`;
+    dispatch({
+      type: "CREATE_THREAD",
+      id,
+      channelId: state.selectedChannelId,
+      title: "New thread",
+      ptyId: 0,
+    });
+  }, [state.selectedChannelId, dispatch]);
 
-    if (threadType === "chat") {
-      const defaultProvider = state.providers.find(
-        (p) => p.id === state.defaultProviderId,
-      );
-      if (!defaultProvider) {
-        setSettingsOpen(true);
-        return;
-      }
-      dispatch({
-        type: "CREATE_CHAT_THREAD",
-        id,
-        channelId: state.selectedChannelId,
-        title: text || "New chat",
-        providerId: defaultProvider.id,
-        model: defaultProvider.defaultModel,
-      });
-    } else {
-      dispatch({
-        type: "CREATE_THREAD",
-        id,
-        channelId: state.selectedChannelId,
-        title: text || "New thread",
-        ptyId: 0,
-      });
+  const handleCreateChat = useCallback(() => {
+    if (!state.selectedChannelId) return;
+    const defaultProvider = state.providers.find(
+      (p) => p.id === state.defaultProviderId,
+    );
+    if (!defaultProvider) {
+      dispatch({ type: "SET_VIEW", view: "settings" });
+      return;
     }
-    setPrompt("");
+    threadCounter++;
+    const id = `thread-${Date.now()}-${threadCounter}`;
+    dispatch({
+      type: "CREATE_CHAT_THREAD",
+      id,
+      channelId: state.selectedChannelId,
+      title: "New chat",
+      providerId: defaultProvider.id,
+      model: defaultProvider.defaultModel,
+    });
   }, [
     state.selectedChannelId,
     state.providers,
     state.defaultProviderId,
-    prompt,
-    threadType,
     dispatch,
   ]);
-
-  const handleScheduleSend = useCallback(
-    (timestamp: number) => {
-      if (!state.selectedChannelId) return;
-      const text = prompt.trim();
-      if (!text) return;
-      const id = `sched-${Date.now()}-${threadCounter++}`;
-      dispatch({
-        type: "SCHEDULE_MESSAGE",
-        message: {
-          id,
-          channelId: state.selectedChannelId,
-          prompt: text,
-          scheduledAt: timestamp,
-        },
-      });
-      setPrompt("");
-    },
-    [state.selectedChannelId, prompt, dispatch],
-  );
 
   const handleRename = useCallback(
     (threadId: string, title: string) => {
@@ -500,6 +422,9 @@ export default function ThreadList() {
         case "kill":
           dispatch({ type: "KILL_THREAD_PTY", threadId });
           break;
+        case "delete":
+          dispatch({ type: "DELETE_THREAD", threadId });
+          break;
       }
     },
     [dispatch],
@@ -511,13 +436,6 @@ export default function ThreadList() {
     if (!el) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd+N: focus the compose input
-      if (e.metaKey && e.key === "n") {
-        e.preventDefault();
-        inputRef.current?.focus();
-        return;
-      }
-
       // Cmd+D: mark done
       if (e.metaKey && e.key === "d" && state.selectedThreadId) {
         e.preventDefault();
@@ -529,10 +447,23 @@ export default function ThreadList() {
         return;
       }
 
-      if (flatThreads.length === 0) return;
+      // Backspace/Delete: delete thread
+      if (
+        (e.key === "Backspace" || e.key === "Delete") &&
+        state.selectedThreadId &&
+        !e.metaKey &&
+        !e.ctrlKey
+      ) {
+        e.preventDefault();
+        dispatch({ type: "DELETE_THREAD", threadId: state.selectedThreadId });
+        return;
+      }
 
       // Arrow navigation
-      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (
+        flatThreads.length > 0 &&
+        (e.key === "ArrowDown" || e.key === "ArrowUp")
+      ) {
         e.preventDefault();
         const currentIdx = flatThreads.findIndex(
           (t) => t.id === state.selectedThreadId,
@@ -553,19 +484,16 @@ export default function ThreadList() {
         return;
       }
 
-      // Enter: select thread (focus terminal)
-      if (e.key === "Enter" && state.selectedThreadId) {
+      // Enter: create a new chat thread (primary action)
+      if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
-        dispatch({
-          type: "SELECT_THREAD",
-          threadId: state.selectedThreadId,
-        });
+        handleCreateChat();
       }
     };
 
     el.addEventListener("keydown", handleKeyDown);
     return () => el.removeEventListener("keydown", handleKeyDown);
-  }, [state.selectedThreadId, flatThreads, dispatch]);
+  }, [state.selectedThreadId, flatThreads, dispatch, handleCreateChat]);
 
   if (!state.selectedChannelId) {
     return (
@@ -581,14 +509,6 @@ export default function ThreadList() {
     <div className="thread-list" ref={listRef} tabIndex={0}>
       <div className="thread-list-header">
         <span className="thread-list-channel-name">{channelName}</span>
-        <button
-          type="button"
-          className="thread-list-settings-btn"
-          onClick={() => setSettingsOpen(true)}
-          title="LLM Provider Settings"
-        >
-          &equiv;
-        </button>
       </div>
 
       <div className="thread-list-body">
@@ -628,7 +548,7 @@ export default function ThreadList() {
         />
         {channelThreads.length === 0 && (
           <div className="thread-list-empty-body">
-            <p>No threads yet — type a prompt or press Enter</p>
+            <p>No threads yet</p>
           </div>
         )}
       </div>
@@ -660,49 +580,26 @@ export default function ThreadList() {
         </div>
       )}
 
-      <form
-        className="compose-bar"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSendPrompt();
-        }}
-      >
-        <div className="compose-type-toggle">
-          <button
-            type="button"
-            className={`compose-type-btn ${threadType === "terminal" ? "active" : ""}`}
-            onClick={() => setThreadType("terminal")}
-            title="Terminal thread"
-          >
-            {THREAD_TYPE_ICONS.terminal}
-          </button>
-          <button
-            type="button"
-            className={`compose-type-btn ${threadType === "chat" ? "active" : ""}`}
-            onClick={() => setThreadType("chat")}
-            title="Chat thread"
-          >
-            {THREAD_TYPE_ICONS.chat}
-          </button>
-        </div>
-        <input
-          ref={inputRef}
-          className="compose-input"
-          type="text"
-          placeholder={threadType === "chat" ? "New chat..." : "New thread... (Enter to start)"}
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-        />
-        <ScheduleDropdown onSchedule={handleScheduleSend} />
+      <div className="create-thread-bar">
         <button
-          type="submit"
-          className="compose-send"
+          type="button"
+          className="create-thread-btn create-thread-terminal"
+          onClick={handleCreateTerminal}
         >
-          &uarr;
+          <span className="create-thread-icon">
+            {THREAD_TYPE_ICONS.terminal}
+          </span>
+          Terminal
         </button>
-      </form>
-
-      <ProviderSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
+        <button
+          type="button"
+          className="create-thread-btn create-thread-chat"
+          onClick={handleCreateChat}
+        >
+          <span className="create-thread-icon">{THREAD_TYPE_ICONS.chat}</span>
+          Chat
+        </button>
+      </div>
     </div>
   );
 }

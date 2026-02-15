@@ -1,13 +1,12 @@
-import { useState, useCallback } from "react";
-import { useAppState, useAppDispatch } from "../store";
+import { useCallback, useState } from "react";
+import { useAppDispatch, useAppState } from "../store";
+import { ProviderSettingsInline } from "./ProviderSettings";
 
 export default function SettingsView() {
   const state = useAppState();
   const dispatch = useAppDispatch();
 
-  const [autoRunValue, setAutoRunValue] = useState(
-    state.autoRunCommand ?? "",
-  );
+  const [autoRunValue, setAutoRunValue] = useState(state.autoRunCommand ?? "");
   const [saved, setSaved] = useState(false);
 
   const handleSave = useCallback(
@@ -24,6 +23,10 @@ export default function SettingsView() {
     [autoRunValue, dispatch],
   );
 
+  const handleToggleTheme = useCallback(() => {
+    dispatch({ type: "TOGGLE_THEME" });
+  }, [dispatch]);
+
   return (
     <div className="thread-list">
       <div className="thread-list-header">
@@ -33,13 +36,34 @@ export default function SettingsView() {
       <div className="settings-body">
         <form className="settings-form" onSubmit={handleSave}>
           <div className="settings-section">
+            <h3 className="settings-section-title">Theme</h3>
+
+            <div className="settings-theme-toggle">
+              <button
+                type="button"
+                className={`settings-theme-btn ${state.theme === "light" ? "active" : ""}`}
+                onClick={handleToggleTheme}
+              >
+                {"\u2600"} Light
+              </button>
+              <button
+                type="button"
+                className={`settings-theme-btn ${state.theme === "dark" ? "active" : ""}`}
+                onClick={handleToggleTheme}
+              >
+                {"\u263D"} Dark
+              </button>
+            </div>
+          </div>
+
+          <div className="settings-section">
             <h3 className="settings-section-title">Terminal</h3>
 
             <label className="settings-field">
               <span className="settings-field-label">Auto-run command</span>
               <span className="settings-field-description">
-                Command to automatically execute when a new thread opens.
-                Leave empty to start with a plain shell.
+                Command to automatically execute when a new thread opens. Leave
+                empty to start with a plain shell.
               </span>
               <input
                 className="settings-input"
@@ -57,6 +81,14 @@ export default function SettingsView() {
             </button>
           </div>
         </form>
+
+        <div className="settings-section settings-providers-section">
+          <h3 className="settings-section-title">LLM Providers</h3>
+          <span className="settings-field-description">
+            Configure AI providers for chat threads.
+          </span>
+          <ProviderSettingsInline />
+        </div>
       </div>
     </div>
   );

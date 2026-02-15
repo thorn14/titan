@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useAppState, useAppDispatch } from "../store";
+import { useCallback, useMemo, useState } from "react";
+import { useAppDispatch, useAppState } from "../store";
 import type { Channel } from "../types";
 
 interface DirEntry {
@@ -129,10 +129,6 @@ export default function Sidebar() {
     dispatch({ type: "SET_VIEW", view: "replies" });
   }, [dispatch]);
 
-  const handleToggleTheme = useCallback(() => {
-    dispatch({ type: "TOGGLE_THEME" });
-  }, [dispatch]);
-
   return (
     <div className="sidebar">
       <div className="sidebar-drag-region" data-tauri-drag-region="" />
@@ -196,15 +192,6 @@ export default function Sidebar() {
           title="Settings"
         >
           {"\u2699"}
-        </button>
-
-        <button
-          type="button"
-          className="theme-toggle-btn"
-          onClick={handleToggleTheme}
-          title={`Switch to ${state.theme === "dark" ? "light" : "dark"} mode`}
-        >
-          {state.theme === "dark" ? "\u2600" : "\u263D"}
         </button>
       </div>
     </div>
