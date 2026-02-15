@@ -89,6 +89,7 @@ export default function Sidebar() {
 
   const threadCounts = new Map<string, number>();
   for (const thread of state.threads) {
+    if (thread.status === "done") continue;
     threadCounts.set(
       thread.channelId,
       (threadCounts.get(thread.channelId) ?? 0) + 1,

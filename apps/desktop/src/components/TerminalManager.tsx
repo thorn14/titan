@@ -498,6 +498,19 @@ export default function TerminalManager() {
     }
   }, [state.selectedThreadId, createInstance]);
 
+  // Actually kill PTY processes when threads are marked as killed
+  useEffect(() => {
+    for (const thread of state.threads) {
+      if (!thread.ptyRunning) {
+        const instance = instancesRef.current.get(thread.id);
+        if (instance?.pty) {
+          instance.pty.kill();
+          instance.pty = null;
+        }
+      }
+    }
+  }, [state.threads]);
+
   // Update terminal theme when app theme changes
   useEffect(() => {
     const theme =
