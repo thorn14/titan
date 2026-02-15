@@ -1,11 +1,11 @@
-import { useEffect, useRef, useCallback } from "react";
-import { Terminal } from "xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import { spawn } from "tauri-pty";
-import type { IPty, IDisposable } from "tauri-pty";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useAppState, useAppDispatch } from "../store";
+import { FitAddon } from "@xterm/addon-fit";
+import { useCallback, useEffect, useRef } from "react";
+import { spawn } from "tauri-pty";
+import type { IDisposable, IPty } from "tauri-pty";
+import { Terminal } from "xterm";
 import { SNOOZE_OPTIONS, type SnoozeOption } from "../snooze";
+import { useAppDispatch, useAppState } from "../store";
 import type { ThreadStatus } from "../types";
 import "xterm/css/xterm.css";
 
@@ -154,9 +154,7 @@ function ExitBanner({
   if (exitCode === null) return null;
   return (
     <div className="exit-banner">
-      <span className="exit-banner-text">
-        Process exited (code {exitCode})
-      </span>
+      <span className="exit-banner-text">Process exited (code {exitCode})</span>
       <button
         type="button"
         className="exit-banner-btn"
@@ -199,9 +197,7 @@ export default function TerminalManager() {
           instance.terminal.write(data);
 
           const decoded =
-            typeof data === "string"
-              ? data
-              : new TextDecoder().decode(data);
+            typeof data === "string" ? data : new TextDecoder().decode(data);
           const cleaned = stripAnsi(decoded);
           const lines = cleaned.split(/\r?\n/);
           for (const line of lines) {
@@ -319,10 +315,13 @@ export default function TerminalManager() {
     [dispatch, spawnPty, state.threads],
   );
 
-  // Create instances for new threads
+  // Create instances for new terminal threads only
   useEffect(() => {
     for (const thread of state.threads) {
-      if (!instancesRef.current.has(thread.id)) {
+      if (
+        thread.threadType === "terminal" &&
+        !instancesRef.current.has(thread.id)
+      ) {
         // channelId is the folder path — use it as cwd
         createInstance(thread.id, thread.channelId);
       }

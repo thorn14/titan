@@ -1,8 +1,15 @@
-import { useState, useCallback, useRef, useEffect, type MouseEvent } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useAppState, useAppDispatch } from "../store";
+import {
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { SNOOZE_OPTIONS } from "../snooze";
-import type { Thread, ThreadStatus } from "../types";
+import { useAppDispatch, useAppState } from "../store";
+import type { Thread, ThreadStatus, ThreadType } from "../types";
+import ProviderSettings from "./ProviderSettings";
 
 let threadCounter = 0;
 
@@ -22,6 +29,11 @@ const STATUS_ICONS: Record<ThreadStatus, string> = {
   active: "\u25B6",
   snoozed: "\u23F8",
   done: "\u2713",
+};
+
+const THREAD_TYPE_ICONS: Record<ThreadType, string> = {
+  terminal: "\u25A0",
+  chat: "\u25C6",
 };
 
 function ThreadRow({
@@ -55,17 +67,23 @@ function ThreadRow({
         <div className="thread-row-left">
           {thread.hasUnread && <span className="unread-dot" />}
           <div className="thread-row-text">
-            <span className="thread-title">{thread.title}</span>
-            {thread.lastOutputPreview && (
-              <span className="thread-preview">
-                {thread.lastOutputPreview}
+            <span className="thread-title">
+              <span className="thread-type-icon" title={thread.threadType}>
+                {THREAD_TYPE_ICONS[thread.threadType]}
               </span>
+              {thread.title}
+            </span>
+            {thread.lastOutputPreview && (
+              <span className="thread-preview">{thread.lastOutputPreview}</span>
             )}
           </div>
         </div>
         <div className="thread-row-right">
-          {thread.ptyRunning && (
+          {thread.threadType === "terminal" && thread.ptyRunning && (
             <span className="pty-indicator" title="Terminal running" />
+          )}
+          {thread.threadType === "chat" && thread.isStreaming && (
+            <span className="pty-indicator" title="Streaming" />
           )}
           <span className="thread-time">
             {formatRelativeTime(thread.lastActivityAt)}
@@ -78,56 +96,54 @@ function ThreadRow({
       <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger className="thread-row-menu-anchor" />
         <DropdownMenu.Portal>
-        <DropdownMenu.Content className="dropdown-content" sideOffset={4}>
-          <DropdownMenu.Item
-            className="dropdown-item"
-            onSelect={() => onContextAction(thread.id, "active")}
-          >
-            {"\u25B6"} Mark Active
-          </DropdownMenu.Item>
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger className="dropdown-item dropdown-sub-trigger">
-              {"\u23F8"} Snooze...
-              <span className="dropdown-sub-arrow">&rsaquo;</span>
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.SubContent
-                className="dropdown-content"
-                sideOffset={4}
+          <DropdownMenu.Content className="dropdown-content" sideOffset={4}>
+            <DropdownMenu.Item
+              className="dropdown-item"
+              onSelect={() => onContextAction(thread.id, "active")}
+            >
+              {"\u25B6"} Mark Active
+            </DropdownMenu.Item>
+            <DropdownMenu.Sub>
+              <DropdownMenu.SubTrigger className="dropdown-item dropdown-sub-trigger">
+                {"\u23F8"} Snooze...
+                <span className="dropdown-sub-arrow">&rsaquo;</span>
+              </DropdownMenu.SubTrigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.SubContent
+                  className="dropdown-content"
+                  sideOffset={4}
+                >
+                  {SNOOZE_OPTIONS.map((opt) => (
+                    <DropdownMenu.Item
+                      key={opt.label}
+                      className="dropdown-item"
+                      onSelect={() =>
+                        onContextAction(thread.id, "snooze", opt.getTimestamp())
+                      }
+                    >
+                      {opt.label}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.SubContent>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Sub>
+            <DropdownMenu.Item
+              className="dropdown-item"
+              onSelect={() => onContextAction(thread.id, "done")}
+            >
+              {"\u2713"} Mark as Done
+            </DropdownMenu.Item>
+            <DropdownMenu.Separator className="dropdown-separator" />
+            {thread.threadType === "terminal" && (
+              <DropdownMenu.Item
+                className="dropdown-item dropdown-item-danger"
+                onSelect={() => onContextAction(thread.id, "kill")}
               >
-                {SNOOZE_OPTIONS.map((opt) => (
-                  <DropdownMenu.Item
-                    key={opt.label}
-                    className="dropdown-item"
-                    onSelect={() =>
-                      onContextAction(
-                        thread.id,
-                        "snooze",
-                        opt.getTimestamp(),
-                      )
-                    }
-                  >
-                    {opt.label}
-                  </DropdownMenu.Item>
-                ))}
-              </DropdownMenu.SubContent>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Sub>
-          <DropdownMenu.Item
-            className="dropdown-item"
-            onSelect={() => onContextAction(thread.id, "done")}
-          >
-            {"\u2713"} Mark as Done
-          </DropdownMenu.Item>
-          <DropdownMenu.Separator className="dropdown-separator" />
-          <DropdownMenu.Item
-            className="dropdown-item dropdown-item-danger"
-            onSelect={() => onContextAction(thread.id, "kill")}
-          >
-            Kill Terminal
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+                Kill Terminal
+              </DropdownMenu.Item>
+            )}
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
       </DropdownMenu.Root>
     </div>
   );
@@ -190,6 +206,8 @@ export default function ThreadList() {
   const state = useAppState();
   const dispatch = useAppDispatch();
   const [prompt, setPrompt] = useState("");
+  const [threadType, setThreadType] = useState<ThreadType>("terminal");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -215,10 +233,7 @@ export default function ThreadList() {
     }
     return "";
   }
-  const channelName = findChannelName(
-    state.channels,
-    state.selectedChannelId,
-  );
+  const channelName = findChannelName(state.channels, state.selectedChannelId);
 
   const handleSelectThread = useCallback(
     (threadId: string) => {
@@ -233,15 +248,41 @@ export default function ThreadList() {
     if (!text) return;
     threadCounter++;
     const id = `thread-${Date.now()}-${threadCounter}`;
-    dispatch({
-      type: "CREATE_THREAD",
-      id,
-      channelId: state.selectedChannelId,
-      title: text,
-      ptyId: 0,
-    });
+
+    if (threadType === "chat") {
+      const defaultProvider = state.providers.find(
+        (p) => p.id === state.defaultProviderId,
+      );
+      if (!defaultProvider) {
+        setSettingsOpen(true);
+        return;
+      }
+      dispatch({
+        type: "CREATE_CHAT_THREAD",
+        id,
+        channelId: state.selectedChannelId,
+        title: text,
+        providerId: defaultProvider.id,
+        model: defaultProvider.defaultModel,
+      });
+    } else {
+      dispatch({
+        type: "CREATE_THREAD",
+        id,
+        channelId: state.selectedChannelId,
+        title: text,
+        ptyId: 0,
+      });
+    }
     setPrompt("");
-  }, [state.selectedChannelId, prompt, dispatch]);
+  }, [
+    state.selectedChannelId,
+    state.providers,
+    state.defaultProviderId,
+    prompt,
+    threadType,
+    dispatch,
+  ]);
 
   const handleContextAction = useCallback(
     (threadId: string, action: string, snoozeUntil?: number) => {
@@ -311,7 +352,9 @@ export default function ThreadList() {
         let nextIdx: number;
         if (e.key === "ArrowDown") {
           nextIdx =
-            currentIdx < 0 ? 0 : Math.min(currentIdx + 1, flatThreads.length - 1);
+            currentIdx < 0
+              ? 0
+              : Math.min(currentIdx + 1, flatThreads.length - 1);
         } else {
           nextIdx =
             currentIdx < 0
@@ -350,6 +393,14 @@ export default function ThreadList() {
     <div className="thread-list" ref={listRef} tabIndex={0}>
       <div className="thread-list-header">
         <span className="thread-list-channel-name">{channelName}</span>
+        <button
+          type="button"
+          className="thread-list-settings-btn"
+          onClick={() => setSettingsOpen(true)}
+          title="LLM Provider Settings"
+        >
+          &equiv;
+        </button>
       </div>
 
       <div className="thread-list-body">
@@ -389,11 +440,29 @@ export default function ThreadList() {
           handleSendPrompt();
         }}
       >
+        <div className="compose-type-toggle">
+          <button
+            type="button"
+            className={`compose-type-btn ${threadType === "terminal" ? "active" : ""}`}
+            onClick={() => setThreadType("terminal")}
+            title="Terminal thread"
+          >
+            {THREAD_TYPE_ICONS.terminal}
+          </button>
+          <button
+            type="button"
+            className={`compose-type-btn ${threadType === "chat" ? "active" : ""}`}
+            onClick={() => setThreadType("chat")}
+            title="Chat thread"
+          >
+            {THREAD_TYPE_ICONS.chat}
+          </button>
+        </div>
         <input
           ref={inputRef}
           className="compose-input"
           type="text"
-          placeholder="New thread..."
+          placeholder={threadType === "chat" ? "New chat..." : "New thread..."}
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
         />
@@ -405,6 +474,8 @@ export default function ThreadList() {
           &uarr;
         </button>
       </form>
+
+      <ProviderSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
   );
 }

@@ -1,11 +1,19 @@
 import {
-  createContext,
-  useContext,
   type Dispatch,
   type ReactNode,
+  createContext,
+  useContext,
 } from "react";
-import { useReducer, createElement } from "react";
-import type { AppState, Channel, Thread, ThreadStatus } from "./types";
+import { createElement, useReducer } from "react";
+import type {
+  AppState,
+  Channel,
+  ChatMessage,
+  ProviderConfig,
+  Thread,
+  ThreadStatus,
+  ThreadType,
+} from "./types";
 
 export type Action =
   | { type: "SET_CHANNELS"; channels: Channel[]; rootPath: string }
@@ -15,6 +23,14 @@ export type Action =
       channelId: string;
       title: string;
       ptyId: number;
+    }
+  | {
+      type: "CREATE_CHAT_THREAD";
+      id: string;
+      channelId: string;
+      title: string;
+      providerId: string;
+      model: string;
     }
   | { type: "SELECT_THREAD"; threadId: string }
   | {
@@ -30,7 +46,55 @@ export type Action =
   | { type: "WAKE_SNOOZED" }
   | { type: "KILL_THREAD_PTY"; threadId: string }
   | { type: "SET_PTY_EXITED"; threadId: string; exitCode: number }
-  | { type: "SET_PTY_RUNNING"; threadId: string };
+  | { type: "SET_PTY_RUNNING"; threadId: string }
+  // Chat-specific actions
+  | {
+      type: "ADD_CHAT_MESSAGE";
+      threadId: string;
+      message: ChatMessage;
+    }
+  | {
+      type: "SET_CHAT_MESSAGES";
+      threadId: string;
+      messages: ChatMessage[];
+    }
+  | { type: "SET_STREAMING"; threadId: string; streaming: boolean }
+  | { type: "UPDATE_STREAMING_MESSAGE"; threadId: string; content: string }
+  // Provider actions
+  | { type: "SET_PROVIDERS"; providers: ProviderConfig[] }
+  | { type: "ADD_PROVIDER"; provider: ProviderConfig }
+  | { type: "UPDATE_PROVIDER"; provider: ProviderConfig }
+  | { type: "REMOVE_PROVIDER"; providerId: string }
+  | { type: "SET_DEFAULT_PROVIDER"; providerId: string };
+
+const PROVIDERS_KEY = "titan:providers";
+const DEFAULT_PROVIDER_KEY = "titan:defaultProviderId";
+
+function loadProviders(): ProviderConfig[] {
+  try {
+    const stored = localStorage.getItem(PROVIDERS_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+function saveProviders(providers: ProviderConfig[]) {
+  localStorage.setItem(PROVIDERS_KEY, JSON.stringify(providers));
+}
+
+function loadDefaultProviderId(): string | null {
+  return localStorage.getItem(DEFAULT_PROVIDER_KEY);
+}
+
+function saveDefaultProviderId(id: string | null) {
+  if (id) {
+    localStorage.setItem(DEFAULT_PROVIDER_KEY, id);
+  } else {
+    localStorage.removeItem(DEFAULT_PROVIDER_KEY);
+  }
+}
 
 const initialState: AppState = {
   channels: [],
@@ -38,6 +102,8 @@ const initialState: AppState = {
   selectedChannelId: null,
   selectedThreadId: null,
   rootPath: null,
+  providers: loadProviders(),
+  defaultProviderId: loadDefaultProviderId(),
 };
 
 function deriveUnread(
@@ -46,6 +112,38 @@ function deriveUnread(
 ): boolean {
   if (thread.id === selectedThreadId) return false;
   return thread.lastActivityAt > (thread.lastReadAt ?? 0);
+}
+
+function makeThread(
+  base: Pick<Thread, "id" | "channelId" | "title"> & {
+    threadType: ThreadType;
+    ptyId?: number;
+    providerId?: string;
+    model?: string;
+  },
+): Thread {
+  const now = Date.now();
+  return {
+    id: base.id,
+    channelId: base.channelId,
+    title: base.title,
+    status: "active",
+    createdAt: now,
+    lastActivityAt: now,
+    lastReadAt: now,
+    hasUnread: false,
+    snoozeUntil: null,
+    snoozeDue: false,
+    lastOutputPreview: null,
+    threadType: base.threadType,
+    ptyId: base.ptyId ?? null,
+    ptyRunning: base.threadType === "terminal",
+    ptyExitCode: null,
+    chatMessages: [],
+    model: base.model ?? null,
+    providerId: base.providerId ?? null,
+    isStreaming: false,
+  };
 }
 
 function reducer(state: AppState, action: Action): AppState {
@@ -58,23 +156,30 @@ function reducer(state: AppState, action: Action): AppState {
       };
 
     case "CREATE_THREAD": {
-      const now = Date.now();
-      const thread: Thread = {
+      const thread = makeThread({
         id: action.id,
         channelId: action.channelId,
         title: action.title,
-        status: "active",
-        createdAt: now,
-        lastActivityAt: now,
-        lastReadAt: now,
+        threadType: "terminal",
         ptyId: action.ptyId,
-        hasUnread: false,
-        snoozeUntil: null,
-        snoozeDue: false,
-        lastOutputPreview: null,
-        ptyRunning: true,
-        ptyExitCode: null,
+      });
+      return {
+        ...state,
+        threads: [...state.threads, thread],
+        selectedThreadId: action.id,
+        selectedChannelId: action.channelId,
       };
+    }
+
+    case "CREATE_CHAT_THREAD": {
+      const thread = makeThread({
+        id: action.id,
+        channelId: action.channelId,
+        title: action.title,
+        threadType: "chat",
+        providerId: action.providerId,
+        model: action.model,
+      });
       return {
         ...state,
         threads: [...state.threads, thread],
@@ -176,9 +281,7 @@ function reducer(state: AppState, action: Action): AppState {
 
     case "KILL_THREAD_PTY": {
       const threads = state.threads.map((t) =>
-        t.id === action.threadId
-          ? { ...t, ptyId: null, ptyRunning: false }
-          : t,
+        t.id === action.threadId ? { ...t, ptyId: null, ptyRunning: false } : t,
       );
       return { ...state, threads };
     }
@@ -199,6 +302,103 @@ function reducer(state: AppState, action: Action): AppState {
           : t,
       );
       return { ...state, threads };
+    }
+
+    // Chat-specific actions
+    case "ADD_CHAT_MESSAGE": {
+      const threads = state.threads.map((t) => {
+        if (t.id !== action.threadId) return t;
+        const messages = [...t.chatMessages, action.message];
+        const preview =
+          action.message.content.length > 120
+            ? `${action.message.content.slice(0, 120)}...`
+            : action.message.content;
+        return {
+          ...t,
+          chatMessages: messages,
+          lastActivityAt: Date.now(),
+          lastOutputPreview: preview,
+        };
+      });
+      return { ...state, threads };
+    }
+
+    case "SET_CHAT_MESSAGES": {
+      const threads = state.threads.map((t) => {
+        if (t.id !== action.threadId) return t;
+        const lastMsg = action.messages[action.messages.length - 1];
+        const preview = lastMsg
+          ? lastMsg.content.length > 120
+            ? `${lastMsg.content.slice(0, 120)}...`
+            : lastMsg.content
+          : t.lastOutputPreview;
+        return {
+          ...t,
+          chatMessages: action.messages,
+          lastOutputPreview: preview,
+        };
+      });
+      return { ...state, threads };
+    }
+
+    case "SET_STREAMING": {
+      const threads = state.threads.map((t) =>
+        t.id === action.threadId ? { ...t, isStreaming: action.streaming } : t,
+      );
+      return { ...state, threads };
+    }
+
+    case "UPDATE_STREAMING_MESSAGE": {
+      const threads = state.threads.map((t) => {
+        if (t.id !== action.threadId) return t;
+        const messages = [...t.chatMessages];
+        const lastIdx = messages.length - 1;
+        if (lastIdx >= 0 && messages[lastIdx].role === "assistant") {
+          messages[lastIdx] = { ...messages[lastIdx], content: action.content };
+        }
+        return { ...t, chatMessages: messages };
+      });
+      return { ...state, threads };
+    }
+
+    // Provider actions
+    case "SET_PROVIDERS": {
+      saveProviders(action.providers);
+      return { ...state, providers: action.providers };
+    }
+
+    case "ADD_PROVIDER": {
+      const providers = [...state.providers, action.provider];
+      saveProviders(providers);
+      const defaultProviderId = state.defaultProviderId ?? action.provider.id;
+      saveDefaultProviderId(defaultProviderId);
+      return { ...state, providers, defaultProviderId };
+    }
+
+    case "UPDATE_PROVIDER": {
+      const providers = state.providers.map((p) =>
+        p.id === action.provider.id ? action.provider : p,
+      );
+      saveProviders(providers);
+      return { ...state, providers };
+    }
+
+    case "REMOVE_PROVIDER": {
+      const providers = state.providers.filter(
+        (p) => p.id !== action.providerId,
+      );
+      saveProviders(providers);
+      const defaultProviderId =
+        state.defaultProviderId === action.providerId
+          ? (providers[0]?.id ?? null)
+          : state.defaultProviderId;
+      saveDefaultProviderId(defaultProviderId);
+      return { ...state, providers, defaultProviderId };
+    }
+
+    case "SET_DEFAULT_PROVIDER": {
+      saveDefaultProviderId(action.providerId);
+      return { ...state, defaultProviderId: action.providerId };
     }
 
     default:

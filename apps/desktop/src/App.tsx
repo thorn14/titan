@@ -1,9 +1,10 @@
-import { useEffect } from "react";
-import { AppStateProvider, useAppState, useAppDispatch } from "./store";
+import { useEffect, useMemo } from "react";
+import ChatView from "./components/ChatView";
 import Layout from "./components/Layout";
 import Sidebar from "./components/Sidebar";
-import ThreadList from "./components/ThreadList";
 import TerminalManager from "./components/TerminalManager";
+import ThreadList from "./components/ThreadList";
+import { AppStateProvider, useAppDispatch, useAppState } from "./store";
 
 const SESSION_CHANNEL_KEY = "titan:selectedChannelId";
 const SESSION_THREAD_KEY = "titan:selectedThreadId";
@@ -55,11 +56,20 @@ function AppInner() {
     }
   }, [state.selectedThreadId]);
 
+  const selectedThread = useMemo(
+    () => state.threads.find((t) => t.id === state.selectedThreadId),
+    [state.threads, state.selectedThreadId],
+  );
+
+  const isChatThread = selectedThread?.threadType === "chat";
+
+  const contentArea = isChatThread ? <ChatView /> : <TerminalManager />;
+
   return (
     <Layout
       sidebar={<Sidebar />}
       threadList={<ThreadList />}
-      terminal={<TerminalManager />}
+      terminal={contentArea}
       showTerminal={state.selectedThreadId !== null}
     />
   );
