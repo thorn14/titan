@@ -391,6 +391,7 @@ export default function TerminalManager() {
       threadId: string,
       cwd?: string,
       pendingPrompt?: string,
+      skipPty?: boolean,
     ): TerminalInstance | null => {
       const wrapper = wrapperRef.current;
       if (!wrapper) return null;
@@ -421,7 +422,9 @@ export default function TerminalManager() {
         autoTitleDone: false,
       };
 
-      spawnPty(instance, threadId, cwd, pendingPrompt);
+      if (!skipPty) {
+        spawnPty(instance, threadId, cwd, pendingPrompt);
+      }
       instancesRef.current.set(threadId, instance);
       return instance;
     },
@@ -454,11 +457,11 @@ export default function TerminalManager() {
     [dispatch, spawnPty, state.threads],
   );
 
-  // Create instances for new threads
+  // Create instances for newly created threads only (ptyRunning === true).
+  // Hydrated threads (ptyRunning === false) get instances created lazily when selected.
   useEffect(() => {
     for (const thread of state.threads) {
-      if (!instancesRef.current.has(thread.id)) {
-        // Use thread title as the pending prompt if it's not the placeholder
+      if (!instancesRef.current.has(thread.id) && thread.ptyRunning) {
         const pendingPrompt =
           thread.title && thread.title !== "New thread"
             ? thread.title
@@ -468,9 +471,20 @@ export default function TerminalManager() {
     }
   }, [state.threads, createInstance]);
 
-  // Show/hide terminals based on selected thread
+  // Show/hide terminals based on selected thread.
+  // Lazily create terminal instances for hydrated threads (no PTY) when first selected.
   useEffect(() => {
     const instances = instancesRef.current;
+
+    if (state.selectedThreadId && !instances.has(state.selectedThreadId)) {
+      const thread = threadsRef.current.find(
+        (t) => t.id === state.selectedThreadId,
+      );
+      if (thread) {
+        createInstance(thread.id, thread.channelId, undefined, true);
+      }
+    }
+
     for (const [threadId, instance] of instances) {
       if (threadId === state.selectedThreadId) {
         instance.containerEl.style.display = "block";
@@ -482,7 +496,7 @@ export default function TerminalManager() {
         instance.containerEl.style.display = "none";
       }
     }
-  }, [state.selectedThreadId]);
+  }, [state.selectedThreadId, createInstance]);
 
   // Update terminal theme when app theme changes
   useEffect(() => {

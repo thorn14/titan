@@ -12,6 +12,7 @@ const SESSION_THREAD_KEY = "titan:selectedThreadId";
 const PERSIST_KEY = "titan:threads";
 const PERSIST_ROOT_KEY = "titan:rootPath";
 const PERSIST_SCHEDULED_KEY = "titan:scheduledMessages";
+const PERSIST_CHANNELS_KEY = "titan:channels";
 
 let threadCounter = 1000;
 
@@ -55,30 +56,38 @@ function AppInner() {
     return () => clearInterval(interval);
   }, [dispatch, state.scheduledMessages]);
 
-  // Hydrate persisted threads on startup
+  // Hydrate persisted state on startup
   useEffect(() => {
     try {
       const savedThreads = localStorage.getItem(PERSIST_KEY);
       const savedRoot = localStorage.getItem(PERSIST_ROOT_KEY);
       const savedScheduled = localStorage.getItem(PERSIST_SCHEDULED_KEY);
+      const savedChannels = localStorage.getItem(PERSIST_CHANNELS_KEY);
+      const partial: Record<string, unknown> = {};
       if (savedThreads) {
         const threads = JSON.parse(savedThreads);
-        // Reset PTY state since processes don't survive restart
-        const hydrated = threads.map((t: Record<string, unknown>) => ({
+        // Reset PTY state since processes don't survive restart.
+        // Set ptyExitCode to 0 so the restart banner shows instead of
+        // silently spawning new PTYs for every hydrated thread.
+        partial.threads = threads.map((t: Record<string, unknown>) => ({
           ...t,
           ptyRunning: false,
-          ptyExitCode: null,
+          ptyExitCode: 0,
           ptyId: null,
           hasUnread: false,
           autoTitled: t.autoTitled ?? false,
         }));
-        const partial: Record<string, unknown> = { threads: hydrated };
-        if (savedRoot) {
-          partial.rootPath = savedRoot;
-        }
-        if (savedScheduled) {
-          partial.scheduledMessages = JSON.parse(savedScheduled);
-        }
+      }
+      if (savedRoot) {
+        partial.rootPath = savedRoot;
+      }
+      if (savedChannels) {
+        partial.channels = JSON.parse(savedChannels);
+      }
+      if (savedScheduled) {
+        partial.scheduledMessages = JSON.parse(savedScheduled);
+      }
+      if (Object.keys(partial).length > 0) {
         dispatch({ type: "HYDRATE", state: partial });
       }
     } catch {}
@@ -119,7 +128,7 @@ function AppInner() {
     }
   }, [state.selectedThreadId]);
 
-  // Debounced persistence of threads to localStorage
+  // Debounced persistence of state to localStorage
   useEffect(() => {
     if (persistTimerRef.current) {
       clearTimeout(persistTimerRef.current);
@@ -129,6 +138,12 @@ function AppInner() {
         localStorage.setItem(PERSIST_KEY, JSON.stringify(state.threads));
         if (state.rootPath) {
           localStorage.setItem(PERSIST_ROOT_KEY, state.rootPath);
+        }
+        if (state.channels.length > 0) {
+          localStorage.setItem(
+            PERSIST_CHANNELS_KEY,
+            JSON.stringify(state.channels),
+          );
         }
         if (state.scheduledMessages.length > 0) {
           localStorage.setItem(
@@ -140,7 +155,7 @@ function AppInner() {
         }
       } catch {}
     }, 1000);
-  }, [state.threads, state.rootPath, state.scheduledMessages]);
+  }, [state.threads, state.rootPath, state.scheduledMessages, state.channels]);
 
   let centerContent: React.ReactNode;
   if (state.currentView === "replies") {
