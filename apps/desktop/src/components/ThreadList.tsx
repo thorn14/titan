@@ -22,18 +22,24 @@ const STATUS_ICONS: Record<ThreadStatus, string> = {
   active: "\u25B6",
   snoozed: "\u23F8",
   done: "\u2713",
+  inactive: "\u23F9",
 };
 
 function InlineRenameTitle({
   thread,
   onRename,
+  editRequested,
+  onEditStarted,
 }: {
   thread: Thread;
   onRename: (threadId: string, title: string) => void;
+  editRequested?: boolean;
+  onEditStarted?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(thread.title);
   const inputRef = useRef<HTMLInputElement>(null);
+  const cancelledRef = useRef(false);
 
   useEffect(() => {
     if (editing) {
@@ -41,6 +47,14 @@ function InlineRenameTitle({
       inputRef.current?.select();
     }
   }, [editing]);
+
+  useEffect(() => {
+    if (editRequested) {
+      setValue(thread.title);
+      setEditing(true);
+      onEditStarted?.();
+    }
+  }, [editRequested, thread.title, onEditStarted]);
 
   if (!editing) {
     return (
@@ -74,10 +88,15 @@ function InlineRenameTitle({
           setEditing(false);
         }
         if (e.key === "Escape") {
+          cancelledRef.current = true;
           setEditing(false);
         }
       }}
       onBlur={() => {
+        if (cancelledRef.current) {
+          cancelledRef.current = false;
+          return;
+        }
         const trimmed = value.trim();
         if (trimmed && trimmed !== thread.title) {
           onRename(thread.id, trimmed);
@@ -106,6 +125,7 @@ function ThreadRow({
   onRename: (threadId: string, title: string) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [renameRequested, setRenameRequested] = useState(false);
 
   return (
     <div className="thread-row-wrapper">
@@ -121,7 +141,12 @@ function ThreadRow({
         <div className="thread-row-left">
           {thread.hasUnread && <span className="unread-dot" />}
           <div className="thread-row-text">
-            <InlineRenameTitle thread={thread} onRename={onRename} />
+            <InlineRenameTitle
+              thread={thread}
+              onRename={onRename}
+              editRequested={renameRequested}
+              onEditStarted={() => setRenameRequested(false)}
+            />
             {thread.lastOutputPreview && (
               <span className="thread-preview">
                 {thread.lastOutputPreview}
@@ -147,7 +172,7 @@ function ThreadRow({
         <DropdownMenu.Content className="dropdown-content" sideOffset={4}>
           <DropdownMenu.Item
             className="dropdown-item"
-            onSelect={() => onContextAction(thread.id, "rename")}
+            onSelect={() => setRenameRequested(true)}
           >
             Rename...
           </DropdownMenu.Item>
@@ -331,10 +356,11 @@ export default function ThreadList() {
 
   const active = channelThreads.filter((t) => t.status === "active");
   const snoozed = channelThreads.filter((t) => t.status === "snoozed");
+  const inactive = channelThreads.filter((t) => t.status === "inactive");
   const done = channelThreads.filter((t) => t.status === "done");
 
-  // Flat ordered list for keyboard nav (active, snoozed, done)
-  const flatThreads = [...active, ...snoozed, ...done];
+  // Flat ordered list for keyboard nav
+  const flatThreads = [...active, ...snoozed, ...inactive, ...done];
 
   function findChannelName(
     channels: typeof state.channels,
@@ -435,9 +461,6 @@ export default function ThreadList() {
         case "kill":
           dispatch({ type: "KILL_THREAD_PTY", threadId });
           break;
-        case "rename":
-          // No-op here; rename is handled via double-click inline edit
-          break;
       }
     },
     [dispatch],
@@ -535,6 +558,15 @@ export default function ThreadList() {
           onSelectThread={handleSelectThread}
           onContextAction={handleContextAction}
           onRename={handleRename}
+        />
+        <ThreadGroup
+          title="Inactive"
+          threads={inactive}
+          selectedThreadId={state.selectedThreadId}
+          onSelectThread={handleSelectThread}
+          onContextAction={handleContextAction}
+          onRename={handleRename}
+          defaultCollapsed
         />
         <ThreadGroup
           title="Done"

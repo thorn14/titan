@@ -216,7 +216,7 @@ function reducer(state: AppState, action: Action): AppState {
     case "KILL_THREAD_PTY": {
       const threads = state.threads.map((t) =>
         t.id === action.threadId
-          ? { ...t, ptyId: null, ptyRunning: false }
+          ? { ...t, ptyId: null, ptyRunning: false, ptyExitCode: -1, status: "inactive" as const }
           : t,
       );
       return { ...state, threads };

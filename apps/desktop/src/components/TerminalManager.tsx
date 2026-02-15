@@ -9,12 +9,21 @@ import { SNOOZE_OPTIONS, type SnoozeOption } from "../snooze";
 import type { ThreadStatus } from "../types";
 import "xterm/css/xterm.css";
 
-// Strip ANSI escape codes from terminal output
+// Strip ANSI escape codes and control characters from terminal output
 function stripAnsi(str: string): string {
-  return str.replace(
-    // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI
-    /[\u001b\u009b][[\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nq-uy=><~]/g,
-    "",
+  return (
+    str
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI
+      .replace(
+        /[\u001b\u009b][[\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nq-uy=><~]/g,
+        "",
+      )
+      // Strip OSC sequences (e.g. \x1b]0;window title\x07)
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping OSC
+      .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g, "")
+      // Strip remaining control characters (keep \t, \n, \r)
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control chars
+      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "")
   );
 }
 
@@ -59,6 +68,7 @@ const STATUS_LABELS: Record<ThreadStatus, string> = {
   active: "\u25B6 Active",
   snoozed: "\u23F8 Snoozed",
   done: "\u2713 Done",
+  inactive: "\u23F9 Inactive",
 };
 
 function ThreadToolbar() {
@@ -67,6 +77,7 @@ function ThreadToolbar() {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const cancelledRef = useRef(false);
 
   const selectedThread = state.threads.find(
     (t) => t.id === state.selectedThreadId,
@@ -125,9 +136,18 @@ function ThreadToolbar() {
             onChange={(e) => setEditValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") commitRename();
-              if (e.key === "Escape") setEditing(false);
+              if (e.key === "Escape") {
+                cancelledRef.current = true;
+                setEditing(false);
+              }
             }}
-            onBlur={commitRename}
+            onBlur={() => {
+              if (cancelledRef.current) {
+                cancelledRef.current = false;
+                return;
+              }
+              commitRename();
+            }}
           />
         ) : (
           <span
@@ -212,7 +232,9 @@ function ExitBanner({
   return (
     <div className="exit-banner">
       <span className="exit-banner-text">
-        Process exited (code {exitCode})
+        {exitCode === -1
+          ? "Terminal killed"
+          : `Process exited (code ${exitCode})`}
       </span>
       <button
         type="button"
@@ -504,8 +526,14 @@ export default function TerminalManager() {
       if (!thread.ptyRunning) {
         const instance = instancesRef.current.get(thread.id);
         if (instance?.pty) {
+          for (const d of instance.disposables) d.dispose();
+          instance.disposables = [];
           instance.pty.kill();
           instance.pty = null;
+          instance.terminal.options.cursorBlink = false;
+          instance.terminal.write(
+            "\r\n\x1b[2m[Terminal killed]\x1b[0m\r\n",
+          );
         }
       }
     }

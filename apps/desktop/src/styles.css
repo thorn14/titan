@@ -687,6 +687,10 @@ button {
   color: var(--text-dim);
 }
 
+.thread-status-icon.status-inactive {
+  color: var(--red);
+}
+
 .thread-list-empty {
   display: flex;
   align-items: center;

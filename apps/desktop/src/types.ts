@@ -5,7 +5,7 @@ export interface Channel {
   children: Channel[];
 }
 
-export type ThreadStatus = "active" | "snoozed" | "done";
+export type ThreadStatus = "active" | "snoozed" | "done" | "inactive";
 export type Theme = "light" | "dark";
 export type AppView = "threads" | "replies" | "settings";
 
