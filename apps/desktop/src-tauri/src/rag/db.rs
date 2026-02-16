@@ -176,40 +176,34 @@ impl RagDb {
 
         let mut stmt = conn.prepare(&sql)?;
 
-        let rows = if thread_id.is_some() {
-            stmt.query_map(
-                params![blob, limit_val as i64, thread_id.unwrap()],
-                |row| {
-                    Ok(SearchResult {
-                        id: row.get(0)?,
-                        session_id: row.get(1)?,
-                        thread_id: row.get(2)?,
-                        timestamp: row.get(3)?,
-                        cwd: row.get(4)?,
-                        command: row.get(5)?,
-                        output_preview: row.get::<_, Option<String>>(6)?
-                            .unwrap_or_default(),
-                        distance: row.get(7)?,
-                    })
-                },
-            )?
-        } else {
-            stmt.query_map(params![blob, limit_val as i64], |row| {
-                Ok(SearchResult {
-                    id: row.get(0)?,
-                    session_id: row.get(1)?,
-                    thread_id: row.get(2)?,
-                    timestamp: row.get(3)?,
-                    cwd: row.get(4)?,
-                    command: row.get(5)?,
-                    output_preview: row.get::<_, Option<String>>(6)?
-                        .unwrap_or_default(),
-                    distance: row.get(7)?,
-                })
-            })?
+        // Collect eagerly in each branch to avoid closure type mismatch
+        let row_mapper = |row: &rusqlite::Row| {
+            Ok(SearchResult {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                thread_id: row.get(2)?,
+                timestamp: row.get(3)?,
+                cwd: row.get(4)?,
+                command: row.get(5)?,
+                output_preview: row.get::<_, Option<String>>(6)?
+                    .unwrap_or_default(),
+                distance: row.get(7)?,
+            })
         };
 
-        let mut results: Vec<SearchResult> = rows.filter_map(|r| r.ok()).collect();
+        let mut results: Vec<SearchResult> = if thread_id.is_some() {
+            stmt.query_map(
+                params![blob, limit_val as i64, thread_id.unwrap()],
+                row_mapper,
+            )?
+            .filter_map(|r| r.ok())
+            .collect()
+        } else {
+            stmt.query_map(params![blob, limit_val as i64], row_mapper)?
+                .filter_map(|r| r.ok())
+                .collect()
+        };
+
         results.truncate(limit);
         Ok(results)
     }
@@ -233,48 +227,38 @@ impl RagDb {
 
         let mut stmt = conn.prepare(sql).map_err(|e| format!("Query failed: {e}"))?;
 
-        let rows = if let Some(tid) = thread_id {
-            stmt.query_map(params![tid], |row| {
-                let emb_blob: Vec<u8> = row.get(7)?;
-                Ok((
-                    SearchResult {
-                        id: row.get(0)?,
-                        session_id: row.get(1)?,
-                        thread_id: row.get(2)?,
-                        timestamp: row.get(3)?,
-                        cwd: row.get(4)?,
-                        command: row.get(5)?,
-                        output_preview: row.get::<_, Option<String>>(6)?
-                            .unwrap_or_default(),
-                        distance: None,
-                    },
-                    emb_blob,
-                ))
-            })
-            .map_err(|e| format!("Query failed: {e}"))?
+        let row_mapper = |row: &rusqlite::Row| {
+            let emb_blob: Vec<u8> = row.get(7)?;
+            Ok((
+                SearchResult {
+                    id: row.get(0)?,
+                    session_id: row.get(1)?,
+                    thread_id: row.get(2)?,
+                    timestamp: row.get(3)?,
+                    cwd: row.get(4)?,
+                    command: row.get(5)?,
+                    output_preview: row.get::<_, Option<String>>(6)?
+                        .unwrap_or_default(),
+                    distance: None,
+                },
+                emb_blob,
+            ))
+        };
+
+        let rows: Vec<(SearchResult, Vec<u8>)> = if let Some(tid) = thread_id {
+            stmt.query_map(params![tid], row_mapper)
+                .map_err(|e| format!("Query failed: {e}"))?
+                .filter_map(|r| r.ok())
+                .collect()
         } else {
-            stmt.query_map([], |row| {
-                let emb_blob: Vec<u8> = row.get(7)?;
-                Ok((
-                    SearchResult {
-                        id: row.get(0)?,
-                        session_id: row.get(1)?,
-                        thread_id: row.get(2)?,
-                        timestamp: row.get(3)?,
-                        cwd: row.get(4)?,
-                        command: row.get(5)?,
-                        output_preview: row.get::<_, Option<String>>(6)?
-                            .unwrap_or_default(),
-                        distance: None,
-                    },
-                    emb_blob,
-                ))
-            })
-            .map_err(|e| format!("Query failed: {e}"))?
+            stmt.query_map([], row_mapper)
+                .map_err(|e| format!("Query failed: {e}"))?
+                .filter_map(|r| r.ok())
+                .collect()
         };
 
         let mut scored: Vec<(SearchResult, f64)> = rows
-            .filter_map(|r| r.ok())
+            .into_iter()
             .map(|(mut result, emb_blob)| {
                 let stored_emb = blob_to_embedding(&emb_blob);
                 let dist = cosine_distance(query_embedding, &stored_emb);
@@ -313,39 +297,33 @@ impl RagDb {
 
         let mut stmt = conn.prepare(sql).map_err(|e| format!("Query failed: {e}"))?;
 
-        let results = if let Some(tid) = thread_id {
-            stmt.query_map(params![tid, n as i64], |row| {
-                Ok(SearchResult {
-                    id: row.get(0)?,
-                    session_id: row.get(1)?,
-                    thread_id: row.get(2)?,
-                    timestamp: row.get(3)?,
-                    cwd: row.get(4)?,
-                    command: row.get(5)?,
-                    output_preview: row.get::<_, Option<String>>(6)?
-                        .unwrap_or_default(),
-                    distance: None,
-                })
+        let row_mapper = |row: &rusqlite::Row| {
+            Ok(SearchResult {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                thread_id: row.get(2)?,
+                timestamp: row.get(3)?,
+                cwd: row.get(4)?,
+                command: row.get(5)?,
+                output_preview: row.get::<_, Option<String>>(6)?
+                    .unwrap_or_default(),
+                distance: None,
             })
-            .map_err(|e| format!("Query failed: {e}"))?
-        } else {
-            stmt.query_map(params![n as i64], |row| {
-                Ok(SearchResult {
-                    id: row.get(0)?,
-                    session_id: row.get(1)?,
-                    thread_id: row.get(2)?,
-                    timestamp: row.get(3)?,
-                    cwd: row.get(4)?,
-                    command: row.get(5)?,
-                    output_preview: row.get::<_, Option<String>>(6)?
-                        .unwrap_or_default(),
-                    distance: None,
-                })
-            })
-            .map_err(|e| format!("Query failed: {e}"))?
         };
 
-        Ok(results.filter_map(|r| r.ok()).collect())
+        let results: Vec<SearchResult> = if let Some(tid) = thread_id {
+            stmt.query_map(params![tid, n as i64], row_mapper)
+                .map_err(|e| format!("Query failed: {e}"))?
+                .filter_map(|r| r.ok())
+                .collect()
+        } else {
+            stmt.query_map(params![n as i64], row_mapper)
+                .map_err(|e| format!("Query failed: {e}"))?
+                .filter_map(|r| r.ok())
+                .collect()
+        };
+
+        Ok(results)
     }
 
     /// Get the full output of a specific chunk by ID.

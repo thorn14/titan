@@ -1,3 +1,6 @@
+use ort::session::builder::GraphOptimizationLevel;
+use ort::session::Session;
+use ort::value::Value;
 use std::path::Path;
 
 /// Local embedding using all-MiniLM-L6-v2 ONNX model (384-dim).
@@ -9,7 +12,7 @@ use std::path::Path;
 /// If files are missing, `Embedder::new()` returns an error and RAG
 /// operates in storage-only mode (no semantic search, only recency).
 pub struct Embedder {
-    session: ort::Session,
+    session: Session,
     tokenizer: tokenizers::Tokenizer,
 }
 
@@ -32,8 +35,8 @@ impl Embedder {
             ));
         }
 
-        let session = ort::Session::builder()
-            .and_then(|b| b.with_optimization_level(ort::GraphOptimizationLevel::Level3))
+        let session = Session::builder()
+            .and_then(|b| b.with_optimization_level(GraphOptimizationLevel::Level3))
             .and_then(|b| b.commit_from_file(&model_path))
             .map_err(|e| format!("Failed to load ONNX model: {e}"))?;
 
@@ -62,16 +65,15 @@ impl Embedder {
 
         let seq_len = input_ids.len();
 
+        let inputs = ort::inputs![
+            "input_ids" => Value::from_array(([1, seq_len], input_ids.as_slice())).map_err(|e| format!("input_ids: {e}"))?,
+            "attention_mask" => Value::from_array(([1, seq_len], attention_mask.as_slice())).map_err(|e| format!("attention_mask: {e}"))?,
+            "token_type_ids" => Value::from_array(([1, seq_len], token_type_ids.as_slice())).map_err(|e| format!("token_type_ids: {e}"))?,
+        ];
+
         let outputs = self
             .session
-            .run(
-                ort::inputs![
-                    "input_ids" => ort::Value::from_array(([1, seq_len], input_ids.as_slice())).map_err(|e| format!("input_ids: {e}"))?,
-                    "attention_mask" => ort::Value::from_array(([1, seq_len], attention_mask.as_slice())).map_err(|e| format!("attention_mask: {e}"))?,
-                    "token_type_ids" => ort::Value::from_array(([1, seq_len], token_type_ids.as_slice())).map_err(|e| format!("token_type_ids: {e}"))?,
-                ]
-                .map_err(|e| format!("Failed to create inputs: {e}"))?,
-            )
+            .run(inputs)
             .map_err(|e| format!("ONNX inference failed: {e}"))?;
 
         // Extract tensor and perform mean pooling
