@@ -18,12 +18,41 @@ export default function SettingsView() {
   const [modelDir, setModelDir] = useState<string>("");
   const [modelMessage, setModelMessage] = useState<string | null>(null);
 
-  // Load RAG status on mount
+  // Load RAG status and re-apply persisted model configuration on mount
   useEffect(() => {
-    ragStatus().then((s) => {
-      setStatus(s);
-      setModelDir(s.model_dir ?? "");
-    }).catch(() => {});
+    let cancelled = false;
+
+    const init = async () => {
+      try {
+        let savedDir: string | null = null;
+        try {
+          savedDir = localStorage.getItem("titan:ragModelDir");
+        } catch {
+          // Ignore localStorage access errors
+        }
+
+        if (savedDir) {
+          try {
+            await ragConfigureModel(savedDir);
+          } catch {
+            // Ignore configuration errors here; status call below will reflect reality
+          }
+        }
+
+        const s = await ragStatus();
+        if (cancelled) return;
+        setStatus(s);
+        setModelDir(s.model_dir ?? savedDir ?? "");
+      } catch {
+        // Swallow any errors during initialization to avoid breaking SettingsView
+      }
+    };
+
+    void init();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSave = useCallback(
