@@ -149,7 +149,7 @@ impl RagDb {
     ) -> Result<Vec<SearchResult>, rusqlite::Error> {
         let blob = embedding_to_blob(query_embedding);
 
-        let (sql, limit_val) = if let Some(tid) = thread_id {
+        let (sql, limit_val) = if thread_id.is_some() {
             // When filtering by thread, fetch more from vec then filter
             let sql = format!(
                 "SELECT c.id, c.session_id, c.thread_id, c.timestamp, c.cwd,

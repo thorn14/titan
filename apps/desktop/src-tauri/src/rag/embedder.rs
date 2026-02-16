@@ -65,10 +65,15 @@ impl Embedder {
 
         let seq_len = input_ids.len();
 
+        // Clone attention_mask before it's moved into the tensor — we need it for mean pooling.
+        let attn_mask = attention_mask.clone();
+
+        // ort v2 Value::from_array requires owned data: (shape, Vec<T>) or (shape, Box<[T]>).
+        // The ort::inputs! macro returns Vec<(Cow<str>, SessionInputValue)>, not Result.
         let inputs = ort::inputs![
-            "input_ids" => Value::from_array(([1, seq_len], input_ids.as_slice())).map_err(|e| format!("input_ids: {e}"))?,
-            "attention_mask" => Value::from_array(([1, seq_len], attention_mask.as_slice())).map_err(|e| format!("attention_mask: {e}"))?,
-            "token_type_ids" => Value::from_array(([1, seq_len], token_type_ids.as_slice())).map_err(|e| format!("token_type_ids: {e}"))?,
+            "input_ids" => Value::from_array(([1usize, seq_len], input_ids)).map_err(|e| format!("input_ids: {e}"))?,
+            "attention_mask" => Value::from_array(([1usize, seq_len], attention_mask)).map_err(|e| format!("attention_mask: {e}"))?,
+            "token_type_ids" => Value::from_array(([1usize, seq_len], token_type_ids)).map_err(|e| format!("token_type_ids: {e}"))?,
         ];
 
         let outputs = self
@@ -76,25 +81,30 @@ impl Embedder {
             .run(inputs)
             .map_err(|e| format!("ONNX inference failed: {e}"))?;
 
-        // Extract tensor and perform mean pooling
-        let embeddings = outputs[0]
+        // ort v2 try_extract_tensor returns (&Shape, &[T]).
+        // We destructure and work with the flat data directly.
+        let (_shape, flat_data) = outputs[0]
             .try_extract_tensor::<f32>()
             .map_err(|e| format!("Failed to extract tensor: {e}"))?;
 
-        let view = embeddings.view();
-        let shape = view.shape(); // [1, seq_len, 384]
-        let hidden_dim = shape[2];
+        // Output tensor is [1, seq_len, hidden_dim].
+        // Derive hidden_dim from flat data length (batch_size=1).
+        let hidden_dim = if seq_len > 0 {
+            flat_data.len() / seq_len
+        } else {
+            return Err("Empty sequence after tokenization".into());
+        };
 
-        // Mean pooling over token embeddings (masked by attention)
+        // Mean pooling over token embeddings, masked by attention
         let mut pooled = vec![0f32; hidden_dim];
-        for i in 0..shape[1] {
-            if attention_mask[i] == 1 {
+        for i in 0..seq_len {
+            if attn_mask[i] == 1 {
                 for j in 0..hidden_dim {
-                    pooled[j] += view[[0, i, j]];
+                    pooled[j] += flat_data[i * hidden_dim + j];
                 }
             }
         }
-        let count = attention_mask.iter().filter(|&&m| m == 1).count() as f32;
+        let count = attn_mask.iter().filter(|&&m| m == 1).count() as f32;
         if count > 0.0 {
             for v in &mut pooled {
                 *v /= count;
