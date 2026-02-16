@@ -1,6 +1,7 @@
 use ort::session::builder::GraphOptimizationLevel;
 use ort::session::Session;
 use ort::value::Value;
+use std::panic::AssertUnwindSafe;
 use std::path::Path;
 
 /// Local embedding using all-MiniLM-L6-v2 ONNX model (384-dim).
@@ -35,10 +36,24 @@ impl Embedder {
             ));
         }
 
-        let session = Session::builder()
-            .and_then(|b| b.with_optimization_level(GraphOptimizationLevel::Level3))
-            .and_then(|b| b.commit_from_file(&model_path))
-            .map_err(|e| format!("Failed to load ONNX model: {e}"))?;
+        // ort with `load-dynamic` panics (not Result) if libonnxruntime is
+        // not installed.  Catch that panic so the app keeps running with
+        // semantic search disabled instead of crashing.
+        let session = match std::panic::catch_unwind(AssertUnwindSafe(|| {
+            Session::builder()
+                .and_then(|b| b.with_optimization_level(GraphOptimizationLevel::Level3))
+                .and_then(|b| b.commit_from_file(&model_path))
+        })) {
+            Ok(Ok(s)) => s,
+            Ok(Err(e)) => return Err(format!("Failed to load ONNX model: {e}")),
+            Err(_) => {
+                return Err(
+                    "ONNX Runtime not available — libonnxruntime not found. \
+                     Install ONNX Runtime or download the model via the setup script."
+                        .into(),
+                );
+            }
+        };
 
         let tokenizer = tokenizers::Tokenizer::from_file(&tokenizer_path)
             .map_err(|e| format!("Failed to load tokenizer: {e}"))?;
