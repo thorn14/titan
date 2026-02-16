@@ -36,6 +36,7 @@ export type Action =
   | { type: "SET_OUTPUT_PREVIEW"; threadId: string; preview: string }
   | { type: "MARK_ALL_READ" }
   | { type: "WAKE_SNOOZED" }
+  | { type: "DELETE_THREAD"; threadId: string }
   | { type: "KILL_THREAD_PTY"; threadId: string }
   | { type: "SET_PTY_EXITED"; threadId: string; exitCode: number }
   | { type: "SET_PTY_RUNNING"; threadId: string }
@@ -211,6 +212,15 @@ function reducer(state: AppState, action: Action): AppState {
         return t;
       });
       return changed ? { ...state, threads } : state;
+    }
+
+    case "DELETE_THREAD": {
+      const threads = state.threads.filter((t) => t.id !== action.threadId);
+      const selectedThreadId =
+        state.selectedThreadId === action.threadId
+          ? null
+          : state.selectedThreadId;
+      return { ...state, threads, selectedThreadId };
     }
 
     case "KILL_THREAD_PTY": {

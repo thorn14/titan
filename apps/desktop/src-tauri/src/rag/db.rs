@@ -331,6 +331,44 @@ impl RagDb {
         Ok(results)
     }
 
+    /// Delete all chunks (and their vec entries) for a given thread.
+    /// Returns the number of rows removed.
+    pub fn delete_by_thread_id(&self, thread_id: &str) -> Result<usize, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {e}"))?;
+
+        // Collect rowids so we can clean up the vec table too
+        let mut stmt = conn
+            .prepare("SELECT id FROM pty_chunks WHERE thread_id = ?1")
+            .map_err(|e| format!("Query failed: {e}"))?;
+        let ids: Vec<i64> = stmt
+            .query_map(params![thread_id], |row| row.get(0))
+            .map_err(|e| format!("Query failed: {e}"))?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        if ids.is_empty() {
+            return Ok(0);
+        }
+
+        // Remove from vec table (best-effort, may not exist)
+        for id in &ids {
+            let _ = conn.execute(
+                "DELETE FROM pty_chunks_vec WHERE rowid = ?1",
+                params![id],
+            );
+        }
+
+        // Remove from main table
+        let deleted = conn
+            .execute(
+                "DELETE FROM pty_chunks WHERE thread_id = ?1",
+                params![thread_id],
+            )
+            .map_err(|e| format!("Delete failed: {e}"))?;
+
+        Ok(deleted)
+    }
+
     /// Get the full output of a specific chunk by ID.
     pub fn get_chunk(&self, chunk_id: i64) -> Result<FullChunk, String> {
         let conn = self.conn.lock().map_err(|e| format!("Lock error: {e}"))?;

@@ -152,6 +152,12 @@ impl RagState {
         db.recent(n, thread_id)
     }
 
+    /// Delete all RAG data for a thread.
+    pub fn delete_thread(&self, thread_id: &str) -> Result<usize, String> {
+        let db = self.db.as_ref().ok_or("RAG database not initialized")?;
+        db.delete_by_thread_id(thread_id)
+    }
+
     /// Get full chunk by ID.
     pub fn get_chunk(&self, chunk_id: i64) -> Result<types::FullChunk, String> {
         let db = self.db.as_ref().ok_or("RAG database not initialized")?;

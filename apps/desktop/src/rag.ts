@@ -115,6 +115,10 @@ export async function ragGet(chunkId: number): Promise<FullChunk> {
   return invoke<FullChunk>("pty_rag_get", { chunkId });
 }
 
+export async function ragDeleteThread(threadId: string): Promise<number> {
+  return invoke<number>("pty_rag_delete_thread", { threadId });
+}
+
 export async function ragStatus(): Promise<RagStatus> {
   return invoke<RagStatus>("pty_rag_status");
 }

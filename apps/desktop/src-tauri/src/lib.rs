@@ -127,6 +127,15 @@ fn pty_rag_get(
     state.get_chunk(chunk_id)
 }
 
+/// Delete all RAG chunks for a given thread.
+#[tauri::command]
+fn pty_rag_delete_thread(
+    thread_id: String,
+    state: tauri::State<'_, RagState>,
+) -> Result<usize, String> {
+    state.delete_thread(&thread_id)
+}
+
 /// Check RAG pipeline status (is DB available? is embedder available?).
 #[tauri::command]
 fn pty_rag_status(state: tauri::State<'_, RagState>) -> RagStatusInfo {
@@ -224,6 +233,7 @@ pub fn run() {
             pty_rag_search,
             pty_rag_recent,
             pty_rag_get,
+            pty_rag_delete_thread,
             pty_rag_status,
             pty_rag_configure_model,
         ])

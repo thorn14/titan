@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, type MouseEvent } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppState, useAppDispatch } from "../store";
+import { ragDeleteThread } from "../rag";
 import { SNOOZE_OPTIONS } from "../snooze";
 import type { Thread, ThreadStatus } from "../types";
 
@@ -223,6 +224,12 @@ function ThreadRow({
             onSelect={() => onContextAction(thread.id, "kill")}
           >
             Kill Terminal
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className="dropdown-item dropdown-item-danger"
+            onSelect={() => onContextAction(thread.id, "delete")}
+          >
+            Delete Thread
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -460,6 +467,13 @@ export default function ThreadList() {
           break;
         case "kill":
           dispatch({ type: "KILL_THREAD_PTY", threadId });
+          break;
+        case "delete":
+          dispatch({ type: "KILL_THREAD_PTY", threadId });
+          dispatch({ type: "DELETE_THREAD", threadId });
+          ragDeleteThread(threadId).catch((err) =>
+            console.error("[rag] Failed to delete thread chunks:", err),
+          );
           break;
       }
     },
