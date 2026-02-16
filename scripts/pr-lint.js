@@ -25,7 +25,7 @@ const PATTERNS = [
   {
     name: 'empty-catch-block',
     regex: /catch\s*(\([^)]*\))?\s*\{\s*\}/g,
-    message: 'Empty catch block detected. Consider logging the error or adding a comment explaining why it\'s safe to ignore.',
+    message: 'Empty catch block detected. Consider logging the error or adding a comment explaining why it\'s safe to ignore. Note: Blocks with only whitespace are considered empty.',
     severity: 'warning',
   },
   {
@@ -82,17 +82,20 @@ function scanFile(filePath) {
   const relativePath = path.relative(process.cwd(), filePath);
   
   for (const pattern of PATTERNS) {
-    // Reset regex lastIndex for each file to ensure it starts from the beginning
-    if (pattern.regex.global) {
-      pattern.regex.lastIndex = 0;
-    }
+    // Reset regex lastIndex to ensure it starts from the beginning for each file
+    pattern.regex.lastIndex = 0;
     
     let match;
     while ((match = pattern.regex.exec(content)) !== null) {
       // Find line number
       const beforeMatch = content.substring(0, match.index);
       const lineNumber = beforeMatch.split('\n').length;
-      const columnNumber = match.index - beforeMatch.lastIndexOf('\n');
+      
+      // Calculate column number (1-indexed)
+      const lastNewlineIndex = beforeMatch.lastIndexOf('\n');
+      const columnNumber = lastNewlineIndex === -1 
+        ? match.index + 1  // First line
+        : match.index - lastNewlineIndex;  // Subsequent lines
       
       // Emit GitHub Actions annotation
       emitAnnotation({
