@@ -7,7 +7,7 @@ export interface Channel {
 
 export type ThreadStatus = "active" | "snoozed" | "done" | "inactive";
 export type Theme = "light" | "dark";
-export type AppView = "threads" | "replies" | "settings";
+export type AppView = "threads" | "replies" | "settings" | "search";
 
 export interface Thread {
   id: string;

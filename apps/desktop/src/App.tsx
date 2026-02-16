@@ -5,6 +5,7 @@ import Sidebar from "./components/Sidebar";
 import ThreadList from "./components/ThreadList";
 import RepliesView from "./components/RepliesView";
 import SettingsView from "./components/SettingsView";
+import PtySearch from "./components/PtySearch";
 import TerminalManager from "./components/TerminalManager";
 
 const SESSION_CHANNEL_KEY = "titan:selectedChannelId";
@@ -162,6 +163,8 @@ function AppInner() {
     centerContent = <RepliesView />;
   } else if (state.currentView === "settings") {
     centerContent = <SettingsView />;
+  } else if (state.currentView === "search") {
+    centerContent = <PtySearch />;
   } else {
     centerContent = <ThreadList />;
   }

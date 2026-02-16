@@ -7,6 +7,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useAppState, useAppDispatch } from "../store";
 import { SNOOZE_OPTIONS, type SnoozeOption } from "../snooze";
 import type { ThreadStatus } from "../types";
+import { PtyRagTap, getSentinelInjection } from "../rag";
 import "xterm/css/xterm.css";
 
 // Strip ANSI escape codes and control characters from terminal output
@@ -38,6 +39,7 @@ interface TerminalInstance {
   claudeStarted: boolean;
   promptSent: boolean;
   autoTitleDone: boolean;
+  ragTap: PtyRagTap | null;
 }
 
 export const DARK_TERM_THEME = {
@@ -276,6 +278,19 @@ export default function TerminalManager() {
 
       instance.pty = pty;
 
+      // Create RAG tap for this PTY session
+      const sessionId = `pty-${threadId}-${Date.now()}`;
+      instance.ragTap = new PtyRagTap(sessionId, threadId);
+
+      // Inject sentinel for command boundary detection.
+      // Small delay to let the shell initialize before injecting.
+      setTimeout(() => {
+        if (instance.pty) {
+          const sentinel = getSentinelInjection("/bin/zsh");
+          instance.pty.write(`${sentinel}\n`);
+        }
+      }, 200);
+
       // Auto-run configured command after shell initializes
       const cmd = autoRunCommandRef.current;
       if (cmd) {
@@ -307,6 +322,15 @@ export default function TerminalManager() {
                 : new Uint8Array(rawData);
 
           instance.terminal.write(data);
+
+          // Feed into RAG tap for chunk extraction
+          const textForRag =
+            typeof data === "string"
+              ? data
+              : new TextDecoder().decode(data);
+          if (instance.ragTap) {
+            instance.ragTap.onData(textForRag);
+          }
 
           const decoded =
             typeof data === "string"
@@ -385,6 +409,10 @@ export default function TerminalManager() {
 
       instance.disposables.push(
         pty.onExit(({ exitCode }) => {
+          // Flush remaining RAG buffer on PTY exit
+          if (instance.ragTap) {
+            instance.ragTap.flush();
+          }
           dispatch({ type: "SET_PTY_EXITED", threadId, exitCode });
         }),
       );
@@ -442,6 +470,7 @@ export default function TerminalManager() {
         claudeStarted: false,
         promptSent: false,
         autoTitleDone: false,
+        ragTap: null,
       };
 
       if (!skipPty) {
@@ -464,6 +493,12 @@ export default function TerminalManager() {
       // Clear old disposables (pty-related)
       for (const d of instance.disposables) d.dispose();
       instance.disposables = [];
+
+      // Flush remaining RAG data before restart
+      if (instance.ragTap) {
+        instance.ragTap.flush();
+        instance.ragTap = null;
+      }
 
       instance.terminal.clear();
       instance.claudeStarted = false;
@@ -569,6 +604,7 @@ export default function TerminalManager() {
     return () => {
       for (const [, instance] of instances) {
         if (instance.previewTimer) clearTimeout(instance.previewTimer);
+        if (instance.ragTap) instance.ragTap.flush();
         for (const d of instance.disposables) d.dispose();
         if (instance.pty) instance.pty.kill();
         instance.terminal.dispose();

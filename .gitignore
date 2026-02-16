@@ -6,3 +6,8 @@ target/
 .env
 .env.*
 !.env.example
+
+# ONNX model files (large binaries, download via scripts/download-model.sh)
+*.onnx
+apps/desktop/src-tauri/resources/models/all-MiniLM-L6-v2/tokenizer.json
+apps/desktop/src-tauri/resources/models/all-MiniLM-L6-v2/config.json

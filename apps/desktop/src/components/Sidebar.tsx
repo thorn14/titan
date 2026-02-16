@@ -129,6 +129,10 @@ export default function Sidebar() {
     dispatch({ type: "SET_VIEW", view: "replies" });
   }, [dispatch]);
 
+  const handleOpenSearch = useCallback(() => {
+    dispatch({ type: "SET_VIEW", view: "search" });
+  }, [dispatch]);
+
   const handleToggleTheme = useCallback(() => {
     dispatch({ type: "TOGGLE_THEME" });
   }, [dispatch]);
@@ -175,7 +179,7 @@ export default function Sidebar() {
         ))}
       </div>
 
-      {/* Replies button */}
+      {/* Bottom buttons */}
       <div className="sidebar-bottom">
         <button
           type="button"
@@ -187,6 +191,16 @@ export default function Sidebar() {
           {replyCount > 0 && (
             <span className="replies-badge">{replyCount}</span>
           )}
+        </button>
+
+        <button
+          type="button"
+          className={`replies-btn ${state.currentView === "search" ? "active" : ""}`}
+          onClick={handleOpenSearch}
+          title="Search terminal history"
+        >
+          <span className="replies-btn-icon">{"\u{1F50D}"}</span>
+          <span>Search</span>
         </button>
 
         <button
