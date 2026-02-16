@@ -12,7 +12,11 @@ const path = require('path');
 
 // Configuration
 const FAIL_ON_WARNINGS = process.env.FAIL_ON_WARNINGS === 'true';
-const SOURCE_DIR = path.join(__dirname, '..', 'apps', 'desktop', 'src');
+// Scan paths - currently limited to desktop app source directory.
+// To scan additional directories, modify this array or make it configurable via environment variable.
+const SCAN_DIRS = [
+  path.join(__dirname, '..', 'apps', 'desktop', 'src')
+];
 
 // Pattern definitions
 const PATTERNS = [
@@ -34,12 +38,9 @@ const PATTERNS = [
     message: 'e.preventDefault() in onSelect handler detected. This may interfere with expected menu behavior.',
     severity: 'warning',
   },
-  {
-    name: 'threadcounter-usage',
-    regex: /threadCounter/g,
-    message: 'threadCounter usage detected. Ensure this counter is properly initialized and synchronized across the application.',
-    severity: 'warning',
-  },
+  // Note: threadCounter pattern removed as it was too broad and flagged legitimate uses.
+  // If you need to detect specific synchronization issues with threadCounter, add a more
+  // targeted pattern here (e.g., concurrent modifications without proper locking).
   {
     name: 'suspicious-loadautoruncommand',
     regex: /loadAutoRunCommand\([^)]*\|\|\s*['"]/g,
@@ -130,12 +131,13 @@ function emitAnnotation({ severity, file, line, col, message }) {
 function main() {
   console.log('🔍 Running repository pattern scanner...\n');
   
-  if (!fs.existsSync(SOURCE_DIR)) {
-    console.error(`❌ Source directory not found: ${SOURCE_DIR}`);
-    process.exit(1);
+  for (const dir of SCAN_DIRS) {
+    if (!fs.existsSync(dir)) {
+      console.error(`❌ Source directory not found: ${dir}`);
+      process.exit(1);
+    }
+    scanDirectory(dir);
   }
-  
-  scanDirectory(SOURCE_DIR);
   
   console.log('\n📊 Scan Results:');
   console.log(`   Warnings: ${warningCount}`);
