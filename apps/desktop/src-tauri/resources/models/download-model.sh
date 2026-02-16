@@ -6,7 +6,9 @@
 
 set -euo pipefail
 
-MODEL_DIR="$(cd "$(dirname "$0")/all-MiniLM-L6-v2" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+MODEL_DIR="$SCRIPT_DIR/all-MiniLM-L6-v2"
+mkdir -p "$MODEL_DIR"
 HF_BASE="https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main"
 
 echo "Downloading all-MiniLM-L6-v2 to $MODEL_DIR..."

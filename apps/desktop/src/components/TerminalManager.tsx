@@ -555,8 +555,11 @@ export default function TerminalManager() {
     }
   }, [state.selectedThreadId, createInstance]);
 
-  // Actually kill PTY processes when threads are marked as killed
+  // Actually kill PTY processes when threads are marked as killed,
+  // and fully tear down instances for deleted threads.
   useEffect(() => {
+    const threadIds = new Set(state.threads.map((t) => t.id));
+
     for (const thread of state.threads) {
       if (!thread.ptyRunning) {
         const instance = instancesRef.current.get(thread.id);
@@ -570,6 +573,19 @@ export default function TerminalManager() {
             "\r\n\x1b[2m[Terminal killed]\x1b[0m\r\n",
           );
         }
+      }
+    }
+
+    // Clean up orphaned instances whose threads were deleted from state
+    for (const [threadId, instance] of instancesRef.current) {
+      if (!threadIds.has(threadId)) {
+        if (instance.previewTimer) clearTimeout(instance.previewTimer);
+        if (instance.ragTap) instance.ragTap.flush();
+        for (const d of instance.disposables) d.dispose();
+        if (instance.pty) instance.pty.kill();
+        instance.terminal.dispose();
+        instance.containerEl.remove();
+        instancesRef.current.delete(threadId);
       }
     }
   }, [state.threads]);

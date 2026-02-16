@@ -95,6 +95,7 @@ export default function PtySearch() {
         return;
       }
       setExpandedId(id);
+      setFullOutput(null);
       try {
         const chunk = await ragGet(id);
         setFullOutput(chunk);

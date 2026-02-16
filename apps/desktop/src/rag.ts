@@ -175,29 +175,36 @@ export class PtyRagTap {
    */
   onData(data: string): void {
     this.buffer += data;
-    this.extractChunks();
+    const sentinelFound = this.extractChunks();
 
-    // Also accumulate into fallback buffer (for non-sentinel content)
-    const stripped = stripAnsiForRag(data);
-    if (stripped.trim().length > 0) {
-      this.fallbackBuffer += stripped;
-      this.scheduleFallbackFlush();
+    // Only accumulate into fallback buffer when no sentinel was found.
+    // When sentinels are working, extractChunks handles chunking and
+    // clears fallbackBuffer — re-appending here would duplicate content.
+    if (!sentinelFound) {
+      const stripped = stripAnsiForRag(data);
+      if (stripped.trim().length > 0) {
+        this.fallbackBuffer += stripped;
+        this.scheduleFallbackFlush();
 
-      // Size-based flush
-      if (this.fallbackBuffer.length >= this.FALLBACK_SIZE_THRESHOLD) {
-        this.flushFallback();
+        // Size-based flush
+        if (this.fallbackBuffer.length >= this.FALLBACK_SIZE_THRESHOLD) {
+          this.flushFallback();
+        }
       }
     }
   }
 
   /**
    * Scan buffer for sentinel sequences and extract command chunks.
+   * Returns true if at least one sentinel was found and processed.
    */
-  private extractChunks(): void {
+  private extractChunks(): boolean {
     let sentinelIdx: number;
+    let found = false;
 
     // biome-ignore lint/suspicious/noAssignInExpressions: loop extraction pattern
     while ((sentinelIdx = this.buffer.indexOf(SENTINEL_PREFIX)) !== -1) {
+      found = true;
       // Everything before the sentinel = output of previous command
       const beforeSentinel = this.buffer.slice(0, sentinelIdx);
 
@@ -246,6 +253,8 @@ export class PtyRagTap {
       this.currentCwd = cwd || null;
       this.chunkStartTime = Date.now();
     }
+
+    return found;
   }
 
   /**
