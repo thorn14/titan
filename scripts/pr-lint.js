@@ -95,7 +95,7 @@ function scanFile(filePath) {
       const lastNewlineIndex = beforeMatch.lastIndexOf('\n');
       const columnNumber = lastNewlineIndex === -1 
         ? match.index + 1  // First line
-        : match.index - lastNewlineIndex;  // Subsequent lines
+        : match.index - lastNewlineIndex + 1;  // Subsequent lines
       
       // Emit GitHub Actions annotation
       emitAnnotation({
