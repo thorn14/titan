@@ -1,18 +1,18 @@
 import {
-  createContext,
-  useContext,
   type Dispatch,
   type ReactNode,
+  createContext,
+  useContext,
 } from "react";
-import { useReducer, createElement } from "react";
+import { createElement, useReducer } from "react";
 import type {
   AppState,
   AppView,
   Channel,
   ScheduledMessage,
+  Theme,
   Thread,
   ThreadStatus,
-  Theme,
 } from "./types";
 
 export type Action =
@@ -216,7 +216,13 @@ function reducer(state: AppState, action: Action): AppState {
     case "KILL_THREAD_PTY": {
       const threads = state.threads.map((t) =>
         t.id === action.threadId
-          ? { ...t, ptyId: null, ptyRunning: false, ptyExitCode: -1, status: "inactive" as const }
+          ? {
+              ...t,
+              ptyId: null,
+              ptyRunning: false,
+              ptyExitCode: -1,
+              status: "inactive" as const,
+            }
           : t,
       );
       return { ...state, threads };

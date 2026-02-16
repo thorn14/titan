@@ -1,11 +1,11 @@
-import { useEffect, useRef, useCallback, useState } from "react";
-import { Terminal } from "xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import { spawn } from "tauri-pty";
-import type { IPty, IDisposable } from "tauri-pty";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useAppState, useAppDispatch } from "../store";
+import { FitAddon } from "@xterm/addon-fit";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { spawn } from "tauri-pty";
+import type { IDisposable, IPty } from "tauri-pty";
+import { Terminal } from "xterm";
 import { SNOOZE_OPTIONS, type SnoozeOption } from "../snooze";
+import { useAppDispatch, useAppState } from "../store";
 import type { ThreadStatus } from "../types";
 import "xterm/css/xterm.css";
 
@@ -309,9 +309,7 @@ export default function TerminalManager() {
           instance.terminal.write(data);
 
           const decoded =
-            typeof data === "string"
-              ? data
-              : new TextDecoder().decode(data);
+            typeof data === "string" ? data : new TextDecoder().decode(data);
           const cleaned = stripAnsi(decoded);
           const lines = cleaned.split(/\r?\n/);
           for (const line of lines) {
@@ -326,9 +324,7 @@ export default function TerminalManager() {
 
           // Auto-title: generate title from first meaningful output
           if (!instance.autoTitleDone && instance.claudeStarted) {
-            const thread = threadsRef.current.find(
-              (t) => t.id === threadId,
-            );
+            const thread = threadsRef.current.find((t) => t.id === threadId);
             if (thread?.autoTitled) {
               const currentCmd = autoRunCommandRef.current ?? "";
               for (const line of lines) {
@@ -531,9 +527,7 @@ export default function TerminalManager() {
           instance.pty.kill();
           instance.pty = null;
           instance.terminal.options.cursorBlink = false;
-          instance.terminal.write(
-            "\r\n\x1b[2m[Terminal killed]\x1b[0m\r\n",
-          );
+          instance.terminal.write("\r\n\x1b[2m[Terminal killed]\x1b[0m\r\n");
         }
       }
     }
@@ -541,8 +535,7 @@ export default function TerminalManager() {
 
   // Update terminal theme when app theme changes
   useEffect(() => {
-    const theme =
-      state.theme === "dark" ? DARK_TERM_THEME : LIGHT_TERM_THEME;
+    const theme = state.theme === "dark" ? DARK_TERM_THEME : LIGHT_TERM_THEME;
     for (const [, instance] of instancesRef.current) {
       instance.terminal.options.theme = theme;
     }
