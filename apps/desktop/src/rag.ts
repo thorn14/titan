@@ -392,16 +392,22 @@ export function getSentinelInjection(shell: string): string {
   }
 
   if (shellName === "zsh") {
-    // zsh uses precmd hook
+    // zsh uses precmd hook via precmd_functions array
     return [
-      'precmd() { printf "\\033]7777;TITAN_PROMPT\\007%s\\007" "$PWD"; }',
+      'function __titan_sentinel() { printf "\\033]7777;TITAN_PROMPT\\007%s\\007" "$PWD"; }',
+      'precmd_functions=("${precmd_functions[@]}" __titan_sentinel)',
       "",
     ].join("\n");
   }
 
   // Default: bash (PROMPT_COMMAND)
   return [
-    'PROMPT_COMMAND=\'printf "\\033]7777;TITAN_PROMPT\\007%s\\007" "$PWD"\'',
+    '__titan_sentinel() { printf "\\033]7777;TITAN_PROMPT\\007%s\\007" "$PWD"; }',
+    'if [ -n "${PROMPT_COMMAND:-}" ]; then',
+    '  PROMPT_COMMAND="${PROMPT_COMMAND};__titan_sentinel"',
+    'else',
+    '  PROMPT_COMMAND="__titan_sentinel"',
+    'fi',
     "",
   ].join("\n");
 }
