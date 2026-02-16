@@ -97,7 +97,7 @@ export async function ragSearch(
   return invoke<SearchResult[]>("pty_rag_search", {
     query,
     limit,
-    threadId: threadId ?? null,
+    thread_id: threadId ?? null,
   });
 }
 
@@ -107,7 +107,7 @@ export async function ragRecent(
 ): Promise<SearchResult[]> {
   return invoke<SearchResult[]>("pty_rag_recent", {
     n,
-    threadId: threadId ?? null,
+    thread_id: threadId ?? null,
   });
 }
 
@@ -116,7 +116,7 @@ export async function ragGet(chunkId: number): Promise<FullChunk> {
 }
 
 export async function ragDeleteThread(threadId: string): Promise<number> {
-  return invoke<number>("pty_rag_delete_thread", { threadId });
+  return invoke<number>("pty_rag_delete_thread", { thread_id: threadId });
 }
 
 export async function ragStatus(): Promise<RagStatus> {
