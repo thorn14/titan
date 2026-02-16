@@ -82,7 +82,12 @@ impl RagDb {
         let conn = self.conn.lock().map_err(|e| format!("Lock error: {e}"))?;
 
         let output_preview = if output.len() > 500 {
-            &output[..500]
+            // Find a valid UTF-8 char boundary at or before byte 500
+            let mut end = 500;
+            while !output.is_char_boundary(end) {
+                end -= 1;
+            }
+            &output[..end]
         } else {
             output
         };

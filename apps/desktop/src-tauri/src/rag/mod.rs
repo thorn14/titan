@@ -162,7 +162,11 @@ impl RagState {
 /// Prepare chunk text for embedding: "$ command\noutput" with truncation.
 fn prepare_for_embedding(chunk: &RawChunk) -> String {
     let output_truncated = if chunk.output.len() > MAX_EMBED_CHARS {
-        &chunk.output[..MAX_EMBED_CHARS]
+        let mut end = MAX_EMBED_CHARS;
+        while !chunk.output.is_char_boundary(end) {
+            end -= 1;
+        }
+        &chunk.output[..end]
     } else {
         &chunk.output
     };
