@@ -48,7 +48,7 @@ impl Embedder {
 
     /// Generate a 384-dim embedding for the given text.
     /// Performs tokenization, inference, mean pooling, and L2 normalization.
-    pub fn embed(&self, text: &str) -> Result<Vec<f32>, String> {
+    pub fn embed(&mut self, text: &str) -> Result<Vec<f32>, String> {
         let encoding = self
             .tokenizer
             .encode(text, true)

@@ -93,8 +93,8 @@ impl RagState {
 
         // Generate embedding if embedder is available
         let embedding = {
-            let emb_guard = self.embedder.lock().map_err(|e| format!("Embedder lock: {e}"))?;
-            if let Some(ref emb) = *emb_guard {
+            let mut emb_guard = self.embedder.lock().map_err(|e| format!("Embedder lock: {e}"))?;
+            if let Some(ref mut emb) = *emb_guard {
                 match emb.embed(&embed_text) {
                     Ok(vec) => Some(vec),
                     Err(e) => {
@@ -127,13 +127,13 @@ impl RagState {
     ) -> Result<Vec<types::SearchResult>, String> {
         let db = self.db.as_ref().ok_or("RAG database not initialized")?;
 
-        let emb_guard = self
+        let mut emb_guard = self
             .embedder
             .lock()
             .map_err(|e| format!("Embedder lock: {e}"))?;
 
         let emb = emb_guard
-            .as_ref()
+            .as_mut()
             .ok_or("Semantic search disabled — no embedding model configured. Set a model directory in Settings to enable.")?;
 
         let query_embedding = emb.embed(query)?;
