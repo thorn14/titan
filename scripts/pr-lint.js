@@ -31,7 +31,7 @@ const PATTERNS = [
   {
     name: 'prevent-default-in-onselect',
     regex: /onSelect[^{]*\{[^}]*e\.preventDefault\(\)/gs,
-    message: 'e.preventDefault() in onSelect handler detected. This may interfere with expected menu behavior.',
+    message: 'e.preventDefault() in onSelect handler detected. This may interfere with expected menu behavior. Note: This pattern may not catch all cases with nested blocks.',
     severity: 'warning',
   },
   {
@@ -82,8 +82,10 @@ function scanFile(filePath) {
   const relativePath = path.relative(process.cwd(), filePath);
   
   for (const pattern of PATTERNS) {
-    // Reset regex lastIndex for each file
-    pattern.regex.lastIndex = 0;
+    // Reset regex lastIndex for each file to ensure it starts from the beginning
+    if (pattern.regex.global) {
+      pattern.regex.lastIndex = 0;
+    }
     
     let match;
     while ((match = pattern.regex.exec(content)) !== null) {
