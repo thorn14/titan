@@ -30,8 +30,8 @@ const PATTERNS = [
   },
   {
     name: 'prevent-default-in-onselect',
-    regex: /onSelect[^{]*\{[^}]*e\.preventDefault\(\)/gs,
-    message: 'e.preventDefault() in onSelect handler detected. This may interfere with expected menu behavior. Note: This pattern may not catch all cases with nested blocks.',
+    regex: /onSelect\s*=\s*\{?[\s\S]*?e\.preventDefault\(\)/g,
+    message: 'e.preventDefault() in onSelect handler detected. This may interfere with expected menu behavior.',
     severity: 'warning',
   },
   {
