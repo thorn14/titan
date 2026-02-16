@@ -1,11 +1,11 @@
 import { useEffect, useRef } from "react";
+import { AppStateProvider, useAppState, useAppDispatch } from "./store";
 import Layout from "./components/Layout";
+import Sidebar from "./components/Sidebar";
+import ThreadList from "./components/ThreadList";
 import RepliesView from "./components/RepliesView";
 import SettingsView from "./components/SettingsView";
-import Sidebar from "./components/Sidebar";
 import TerminalManager from "./components/TerminalManager";
-import ThreadList from "./components/ThreadList";
-import { AppStateProvider, useAppDispatch, useAppState } from "./store";
 
 const SESSION_CHANNEL_KEY = "titan:selectedChannelId";
 const SESSION_THREAD_KEY = "titan:selectedThreadId";

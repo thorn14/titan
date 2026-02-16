@@ -1,11 +1,13 @@
-import { useCallback, useState } from "react";
-import { useAppDispatch, useAppState } from "../store";
+import { useState, useCallback } from "react";
+import { useAppState, useAppDispatch } from "../store";
 
 export default function SettingsView() {
   const state = useAppState();
   const dispatch = useAppDispatch();
 
-  const [autoRunValue, setAutoRunValue] = useState(state.autoRunCommand ?? "");
+  const [autoRunValue, setAutoRunValue] = useState(
+    state.autoRunCommand ?? "",
+  );
   const [saved, setSaved] = useState(false);
 
   const handleSave = useCallback(
@@ -36,8 +38,8 @@ export default function SettingsView() {
             <label className="settings-field">
               <span className="settings-field-label">Auto-run command</span>
               <span className="settings-field-description">
-                Command to automatically execute when a new thread opens. Leave
-                empty to start with a plain shell.
+                Command to automatically execute when a new thread opens.
+                Leave empty to start with a plain shell.
               </span>
               <input
                 className="settings-input"

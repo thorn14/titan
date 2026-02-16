@@ -1,7 +1,7 @@
+import { useState, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useCallback, useMemo, useState } from "react";
-import { useAppDispatch, useAppState } from "../store";
+import { useAppState, useAppDispatch } from "../store";
 import type { Channel } from "../types";
 
 interface DirEntry {

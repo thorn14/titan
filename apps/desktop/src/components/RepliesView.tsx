@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { useAppDispatch, useAppState } from "../store";
+import { useAppState, useAppDispatch } from "../store";
 import type { Channel, Thread } from "../types";
 
 function formatRelativeTime(ts: number): string {
@@ -89,7 +89,9 @@ export default function RepliesView() {
                   key={thread.id}
                   type="button"
                   className={`thread-row ${thread.id === state.selectedThreadId ? "selected" : ""}`}
-                  onClick={() => handleSelectReply(thread.id, thread.channelId)}
+                  onClick={() =>
+                    handleSelectReply(thread.id, thread.channelId)
+                  }
                 >
                   <div className="thread-row-left">
                     {reason && (
@@ -112,10 +114,7 @@ export default function RepliesView() {
                   </div>
                   <div className="thread-row-right">
                     {thread.ptyRunning && (
-                      <span
-                        className="pty-indicator"
-                        title="Terminal running"
-                      />
+                      <span className="pty-indicator" title="Terminal running" />
                     )}
                     <span className="thread-time">
                       {formatRelativeTime(thread.lastActivityAt)}
