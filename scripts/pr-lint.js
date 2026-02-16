@@ -25,7 +25,7 @@ const PATTERNS = [
   {
     name: 'empty-catch-block',
     regex: /catch\s*(\([^)]*\))?\s*\{\s*\}/g,
-    message: 'Empty catch block detected. Consider logging the error or adding a comment explaining why it\'s safe to ignore. Note: Blocks with only whitespace are considered empty.',
+    message: 'Empty catch block detected. Consider logging the error or adding a comment explaining why it\'s safe to ignore. Note: Only blocks with no statements and at most whitespace are considered empty by this check; blocks containing comments are not matched.',
     severity: 'warning',
   },
   {
