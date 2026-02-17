@@ -4,6 +4,7 @@
     "dev": "pnpm --filter desktop dev",
     "build": "pnpm --filter desktop build",
     "lint": "biome check .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "pr-checks": "node ./scripts/pr-lint.js"
   }
 }

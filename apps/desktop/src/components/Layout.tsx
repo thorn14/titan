@@ -1,4 +1,10 @@
-import { type ReactNode, useState, useRef, useCallback, useEffect } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 interface LayoutProps {
   sidebar: ReactNode;
@@ -75,6 +81,7 @@ export default function Layout({
         className="resize-handle"
         onMouseDown={onMouseDown("left")}
         role="separator"
+        tabIndex={0}
       />
       <div
         className="panel panel-center"
@@ -90,6 +97,7 @@ export default function Layout({
         className="resize-handle"
         onMouseDown={onMouseDown("right")}
         role="separator"
+        tabIndex={0}
         style={{ display: showTerminal ? undefined : "none" }}
       />
       <div
