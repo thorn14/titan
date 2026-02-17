@@ -1,30 +1,27 @@
-import { useEffect, useRef, useCallback, useState } from "react";
-import { Terminal } from "xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import { spawn } from "tauri-pty";
-import type { IPty, IDisposable } from "tauri-pty";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useAppState, useAppDispatch } from "../store";
+import { FitAddon } from "@xterm/addon-fit";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { spawn } from "tauri-pty";
+import type { IDisposable, IPty } from "tauri-pty";
+import { Terminal } from "xterm";
 import { SNOOZE_OPTIONS, type SnoozeOption } from "../snooze";
+import { useAppDispatch, useAppState } from "../store";
 import type { ThreadStatus } from "../types";
 import "xterm/css/xterm.css";
 
 // Strip ANSI escape codes and control characters from terminal output
 function stripAnsi(str: string): string {
-  return (
-    str
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI
-      .replace(
-        /[\u001b\u009b][[\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nq-uy=><~]/g,
-        "",
-      )
-      // Strip OSC sequences (e.g. \x1b]0;window title\x07)
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping OSC
-      .replace(/\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g, "")
-      // Strip remaining control characters (keep \t, \n, \r)
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control chars
-      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "")
-  );
+  const ansiRegex =
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping ANSI escape codes
+    /[\u001b\u009b][[\]()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nq-uy=><~]/g;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping OSC sequences
+  const oscRegex = /\u001b\][^\u0007\u001b]*(?:\u0007|\u001b\\)/g;
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: stripping control chars
+  const controlRegex = /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g;
+  return str
+    .replace(ansiRegex, "")
+    .replace(oscRegex, "")
+    .replace(controlRegex, "");
 }
 
 interface TerminalInstance {
@@ -153,6 +150,9 @@ function ThreadToolbar() {
           <span
             className="thread-toolbar-title"
             onClick={startEditing}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") startEditing();
+            }}
             title="Click to rename"
           >
             {selectedThread.title}
@@ -309,9 +309,7 @@ export default function TerminalManager() {
           instance.terminal.write(data);
 
           const decoded =
-            typeof data === "string"
-              ? data
-              : new TextDecoder().decode(data);
+            typeof data === "string" ? data : new TextDecoder().decode(data);
           const cleaned = stripAnsi(decoded);
           const lines = cleaned.split(/\r?\n/);
           for (const line of lines) {
@@ -326,9 +324,7 @@ export default function TerminalManager() {
 
           // Auto-title: generate title from first meaningful output
           if (!instance.autoTitleDone && instance.claudeStarted) {
-            const thread = threadsRef.current.find(
-              (t) => t.id === threadId,
-            );
+            const thread = threadsRef.current.find((t) => t.id === threadId);
             if (thread?.autoTitled) {
               const currentCmd = autoRunCommandRef.current ?? "";
               for (const line of lines) {
@@ -531,9 +527,7 @@ export default function TerminalManager() {
           instance.pty.kill();
           instance.pty = null;
           instance.terminal.options.cursorBlink = false;
-          instance.terminal.write(
-            "\r\n\x1b[2m[Terminal killed]\x1b[0m\r\n",
-          );
+          instance.terminal.write("\r\n\x1b[2m[Terminal killed]\x1b[0m\r\n");
         }
       }
     }
@@ -541,8 +535,7 @@ export default function TerminalManager() {
 
   // Update terminal theme when app theme changes
   useEffect(() => {
-    const theme =
-      state.theme === "dark" ? DARK_TERM_THEME : LIGHT_TERM_THEME;
+    const theme = state.theme === "dark" ? DARK_TERM_THEME : LIGHT_TERM_THEME;
     for (const [, instance] of instancesRef.current) {
       instance.terminal.options.theme = theme;
     }

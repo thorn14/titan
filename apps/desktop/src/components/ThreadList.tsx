@@ -1,7 +1,14 @@
-import { useState, useCallback, useRef, useEffect, type MouseEvent } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { useAppState, useAppDispatch } from "../store";
+import {
+  type MouseEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { SNOOZE_OPTIONS } from "../snooze";
+import { useAppDispatch, useAppState } from "../store";
 import type { Thread, ThreadStatus } from "../types";
 
 let threadCounter = 0;
@@ -148,9 +155,7 @@ function ThreadRow({
               onEditStarted={() => setRenameRequested(false)}
             />
             {thread.lastOutputPreview && (
-              <span className="thread-preview">
-                {thread.lastOutputPreview}
-              </span>
+              <span className="thread-preview">{thread.lastOutputPreview}</span>
             )}
           </div>
         </div>
@@ -169,63 +174,59 @@ function ThreadRow({
       <DropdownMenu.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenu.Trigger className="thread-row-menu-anchor" />
         <DropdownMenu.Portal>
-        <DropdownMenu.Content className="dropdown-content" sideOffset={4}>
-          <DropdownMenu.Item
-            className="dropdown-item"
-            onSelect={() => setRenameRequested(true)}
-          >
-            Rename...
-          </DropdownMenu.Item>
-          <DropdownMenu.Separator className="dropdown-separator" />
-          <DropdownMenu.Item
-            className="dropdown-item"
-            onSelect={() => onContextAction(thread.id, "active")}
-          >
-            {"\u25B6"} Mark Active
-          </DropdownMenu.Item>
-          <DropdownMenu.Sub>
-            <DropdownMenu.SubTrigger className="dropdown-item dropdown-sub-trigger">
-              {"\u23F8"} Snooze...
-              <span className="dropdown-sub-arrow">&rsaquo;</span>
-            </DropdownMenu.SubTrigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.SubContent
-                className="dropdown-content"
-                sideOffset={4}
-              >
-                {SNOOZE_OPTIONS.map((opt) => (
-                  <DropdownMenu.Item
-                    key={opt.label}
-                    className="dropdown-item"
-                    onSelect={() =>
-                      onContextAction(
-                        thread.id,
-                        "snooze",
-                        opt.getTimestamp(),
-                      )
-                    }
-                  >
-                    {opt.label}
-                  </DropdownMenu.Item>
-                ))}
-              </DropdownMenu.SubContent>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Sub>
-          <DropdownMenu.Item
-            className="dropdown-item"
-            onSelect={() => onContextAction(thread.id, "done")}
-          >
-            {"\u2713"} Mark as Done
-          </DropdownMenu.Item>
-          <DropdownMenu.Separator className="dropdown-separator" />
-          <DropdownMenu.Item
-            className="dropdown-item dropdown-item-danger"
-            onSelect={() => onContextAction(thread.id, "kill")}
-          >
-            Kill Terminal
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
+          <DropdownMenu.Content className="dropdown-content" sideOffset={4}>
+            <DropdownMenu.Item
+              className="dropdown-item"
+              onSelect={() => setRenameRequested(true)}
+            >
+              Rename...
+            </DropdownMenu.Item>
+            <DropdownMenu.Separator className="dropdown-separator" />
+            <DropdownMenu.Item
+              className="dropdown-item"
+              onSelect={() => onContextAction(thread.id, "active")}
+            >
+              {"\u25B6"} Mark Active
+            </DropdownMenu.Item>
+            <DropdownMenu.Sub>
+              <DropdownMenu.SubTrigger className="dropdown-item dropdown-sub-trigger">
+                {"\u23F8"} Snooze...
+                <span className="dropdown-sub-arrow">&rsaquo;</span>
+              </DropdownMenu.SubTrigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.SubContent
+                  className="dropdown-content"
+                  sideOffset={4}
+                >
+                  {SNOOZE_OPTIONS.map((opt) => (
+                    <DropdownMenu.Item
+                      key={opt.label}
+                      className="dropdown-item"
+                      onSelect={() =>
+                        onContextAction(thread.id, "snooze", opt.getTimestamp())
+                      }
+                    >
+                      {opt.label}
+                    </DropdownMenu.Item>
+                  ))}
+                </DropdownMenu.SubContent>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Sub>
+            <DropdownMenu.Item
+              className="dropdown-item"
+              onSelect={() => onContextAction(thread.id, "done")}
+            >
+              {"\u2713"} Mark as Done
+            </DropdownMenu.Item>
+            <DropdownMenu.Separator className="dropdown-separator" />
+            <DropdownMenu.Item
+              className="dropdown-item dropdown-item-danger"
+              onSelect={() => onContextAction(thread.id, "kill")}
+            >
+              Kill Terminal
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Portal>
       </DropdownMenu.Root>
     </div>
   );
@@ -297,12 +298,20 @@ function ScheduleDropdown({
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger asChild>
-        <button type="button" className="compose-schedule" title="Schedule send">
+        <button
+          type="button"
+          className="compose-schedule"
+          title="Schedule send"
+        >
           {"\u23F0"}
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content className="dropdown-content" sideOffset={4} align="end">
+        <DropdownMenu.Content
+          className="dropdown-content"
+          sideOffset={4}
+          align="end"
+        >
           {SNOOZE_OPTIONS.map((opt) => (
             <DropdownMenu.Item
               key={opt.label}
@@ -323,7 +332,11 @@ function ScheduleDropdown({
             Custom time...
           </DropdownMenu.Item>
           {showCustom && (
-            <div className="schedule-custom" onClick={(e) => e.stopPropagation()}>
+            <div
+              className="schedule-custom"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
               <input
                 type="datetime-local"
                 className="schedule-custom-input"
@@ -360,7 +373,10 @@ export default function ThreadList() {
   const done = channelThreads.filter((t) => t.status === "done");
 
   // Flat ordered list for keyboard nav
-  const flatThreads = [...active, ...snoozed, ...inactive, ...done];
+  const flatThreads = useMemo(
+    () => [...active, ...snoozed, ...inactive, ...done],
+    [active, snoozed, inactive, done],
+  );
 
   function findChannelName(
     channels: typeof state.channels,
@@ -373,10 +389,7 @@ export default function ThreadList() {
     }
     return "";
   }
-  const channelName = findChannelName(
-    state.channels,
-    state.selectedChannelId,
-  );
+  const channelName = findChannelName(state.channels, state.selectedChannelId);
 
   // Pending scheduled messages for this channel
   const pendingScheduled = state.scheduledMessages.filter(
@@ -501,7 +514,9 @@ export default function ThreadList() {
         let nextIdx: number;
         if (e.key === "ArrowDown") {
           nextIdx =
-            currentIdx < 0 ? 0 : Math.min(currentIdx + 1, flatThreads.length - 1);
+            currentIdx < 0
+              ? 0
+              : Math.min(currentIdx + 1, flatThreads.length - 1);
         } else {
           nextIdx =
             currentIdx < 0
@@ -537,7 +552,7 @@ export default function ThreadList() {
   }
 
   return (
-    <div className="thread-list" ref={listRef} tabIndex={0}>
+    <div className="thread-list" ref={listRef}>
       <div className="thread-list-header">
         <span className="thread-list-channel-name">{channelName}</span>
       </div>
@@ -627,10 +642,7 @@ export default function ThreadList() {
           onChange={(e) => setPrompt(e.target.value)}
         />
         <ScheduleDropdown onSchedule={handleScheduleSend} />
-        <button
-          type="submit"
-          className="compose-send"
-        >
+        <button type="submit" className="compose-send">
           &uarr;
         </button>
       </form>

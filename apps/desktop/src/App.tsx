@@ -1,11 +1,11 @@
-import { useEffect, useRef } from "react";
-import { AppStateProvider, useAppState, useAppDispatch } from "./store";
+import { useEffect, useMemo, useRef } from "react";
 import Layout from "./components/Layout";
-import Sidebar from "./components/Sidebar";
-import ThreadList from "./components/ThreadList";
 import RepliesView from "./components/RepliesView";
 import SettingsView from "./components/SettingsView";
+import Sidebar from "./components/Sidebar";
 import TerminalManager from "./components/TerminalManager";
+import ThreadList from "./components/ThreadList";
+import { AppStateProvider, useAppDispatch, useAppState } from "./store";
 
 const SESSION_CHANNEL_KEY = "titan:selectedChannelId";
 const SESSION_THREAD_KEY = "titan:selectedThreadId";
@@ -94,8 +94,15 @@ function AppInner() {
   }, [dispatch]);
 
   // Restore selection from sessionStorage on channel load
+  const hasChannels = state.channels.length > 0;
+  const firstChannelId = useMemo(
+    () => (state.channels.length > 0 ? state.channels[0].id : null),
+    [state.channels],
+  );
+  const hasRestoredRef = useRef(false);
   useEffect(() => {
-    if (state.channels.length === 0) return;
+    if (!hasChannels || hasRestoredRef.current) return;
+    hasRestoredRef.current = true;
 
     const savedChannel = sessionStorage.getItem(SESSION_CHANNEL_KEY);
     const savedThread = sessionStorage.getItem(SESSION_THREAD_KEY);
@@ -105,13 +112,10 @@ function AppInner() {
       if (savedThread) {
         dispatch({ type: "SELECT_THREAD", threadId: savedThread });
       }
-    } else {
-      // Auto-select first channel
-      dispatch({ type: "SELECT_CHANNEL", channelId: state.channels[0].id });
+    } else if (firstChannelId) {
+      dispatch({ type: "SELECT_CHANNEL", channelId: firstChannelId });
     }
-    // Only run when channels are first loaded
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.channels.length > 0]);
+  }, [hasChannels, firstChannelId, dispatch]);
 
   // Persist selection to sessionStorage
   useEffect(() => {

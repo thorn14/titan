@@ -1,7 +1,7 @@
-import { useState, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useAppState, useAppDispatch } from "../store";
+import { useCallback, useMemo, useState } from "react";
+import { useAppDispatch, useAppState } from "../store";
 import type { Channel } from "../types";
 
 interface DirEntry {
@@ -46,18 +46,17 @@ function ChannelNode({
         onClick={() => onSelect(channel.id)}
       >
         {hasChildren ? (
-          <span
+          <button
+            type="button"
             className={`channel-chevron ${expanded ? "expanded" : ""}`}
             onClick={(e) => {
               e.stopPropagation();
               setExpanded(!expanded);
             }}
-            onKeyDown={() => {}}
-            role="button"
             tabIndex={-1}
           >
             &rsaquo;
-          </span>
+          </button>
         ) : (
           <span className="channel-chevron-spacer" />
         )}
